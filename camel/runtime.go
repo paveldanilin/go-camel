@@ -4,35 +4,61 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/paveldanilin/go-camel/camel/component"
 	"sync"
 )
 
-// TODO: interface Context
+type Processor interface {
+	Process(message *Message) error
+}
 
-type Context struct {
-	// TODO: components
+type Consumer interface {
+	Start() error
+	Stop() error
+}
+
+type Producer interface {
+	Processor
+}
+
+type Endpoint interface {
+	Uri() string
+	CreateConsumer(processor Processor) (Consumer, error)
+	CreateProducer() (Producer, error)
+}
+
+type Component interface {
+	Id() string
+	CreateEndpoint(uri string) (Endpoint, error)
+}
+
+type ContextAware interface {
+	SetContext(context *Runtime)
+}
+
+type Runtime struct {
+	components map[string]Component
 	routes     map[string]*Route
 	endpoints  map[string]Endpoint
-	components map[string]Component
 	consumers  []Consumer
 	mu         sync.RWMutex
 	ctx        context.Context
 	cancel     context.CancelFunc
 }
 
-func NewContext() *Context {
+func NewRuntime() *Runtime {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Context{
+	return &Runtime{
+		components: map[string]Component{},
 		routes:     map[string]*Route{},
 		endpoints:  map[string]Endpoint{},
-		components: map[string]Component{},
 		consumers:  []Consumer{},
 		ctx:        ctx,
 		cancel:     cancel,
 	}
 }
 
-func (ctx *Context) RegisterComponent(c Component) error {
+func (ctx *Runtime) RegisterComponent(c Component) error {
 
 	if _, exists := ctx.components[c.Id()]; exists {
 		return errors.New("component already registered: " + c.Id())
@@ -47,7 +73,7 @@ func (ctx *Context) RegisterComponent(c Component) error {
 	return nil
 }
 
-func (ctx *Context) Component(componentId string) Component {
+func (ctx *Runtime) Component(componentId string) Component {
 
 	if c, exists := ctx.components[componentId]; exists {
 		return c
@@ -56,7 +82,7 @@ func (ctx *Context) Component(componentId string) Component {
 	return nil
 }
 
-func (ctx *Context) RegisterRoute(r *Route) error {
+func (ctx *Runtime) RegisterRoute(r *Route) error {
 
 	if _, exists := ctx.routes[r.id]; exists {
 		return errors.New("route already registered: " + r.id)
@@ -67,32 +93,37 @@ func (ctx *Context) RegisterRoute(r *Route) error {
 	return nil
 }
 
-func (ctx *Context) Endpoint(uri string) Endpoint {
+func (ctx *Runtime) Endpoint(uri string) Endpoint {
+
 	return ctx.endpoints[uri]
 }
 
-func (ctx *Context) Send(uri string, payload any, headers map[string]any) (*Message, error) {
+func (ctx *Runtime) Send(uri string, payload any, headers map[string]any) (*Message, error) {
 
 	if endpoint, exists := ctx.endpoints[uri]; exists {
-		if messenger, isMessenger := endpoint.(Messenger); isMessenger {
-			// TODO: message pooling?
-			message := NewMessage()
-			message.context = ctx
-			message.payload = payload
-			message.headers = headers
-			err := messenger.SendMessage(message)
-			if err != nil {
-				return nil, err
-			}
-			return message, nil
+		producer, err := endpoint.CreateProducer()
+		if err != nil {
+			return nil, err
 		}
-		return nil, errors.New("endpoint is not supporting messaging")
+
+		// TODO: message pooling?
+		message := NewMessage()
+		message.context = ctx
+		message.payload = payload
+		message.headers.SetAll(headers)
+
+		err = producer.Process(message)
+		if err != nil {
+			return nil, err
+		}
+
+		return message, nil
 	}
 
-	return nil, errors.New("endoint not found for uri: " + uri)
+	return nil, errors.New("endpoint not found for uri: " + uri)
 }
 
-func (ctx *Context) Route(routeId string) *Route {
+func (ctx *Runtime) Route(routeId string) *Route {
 
 	if r, exists := ctx.routes[routeId]; exists {
 		return r
@@ -101,24 +132,14 @@ func (ctx *Context) Route(routeId string) *Route {
 	return nil
 }
 
-func parseURI(uri string) []string {
-	// "direct:foo" -> ["direct", "foo"]
-	for i := 0; i < len(uri); i++ {
-		if uri[i] == ':' {
-			return []string{uri[:i], uri[i+1:]}
-		}
-	}
-	return []string{uri}
-}
-
-func (ctx *Context) Start() error {
+func (ctx *Runtime) Start() error {
 
 	ctx.mu.Lock()
 	defer ctx.mu.Unlock()
 
 	for _, route := range ctx.routes {
 
-		parts := parseURI(route.from)
+		parts := component.SplitURI(route.from)
 		if len(parts) != 2 {
 			return fmt.Errorf("invalid URI format: %s", route.from)
 		}
@@ -130,17 +151,17 @@ func (ctx *Context) Start() error {
 		}
 
 		if endpoint, exists := ctx.endpoints[route.from]; exists {
-			_, err := endpoint.Consumer(route.producer)
+			_, err := endpoint.CreateConsumer(route.producer)
 			if err != nil {
 				return fmt.Errorf("zzz: %w", err)
 			}
 		} else {
-			endpoint, err := component.Endpoint(uri)
+			endpoint, err := component.CreateEndpoint(uri)
 			if err != nil {
 				return fmt.Errorf("failed to create endpoint: %w", err)
 			}
 			ctx.endpoints[route.from] = endpoint
-			consumer, err := endpoint.Consumer(route.producer)
+			consumer, err := endpoint.CreateConsumer(route.producer)
 			if err != nil {
 				return fmt.Errorf("zzz: %w", err)
 			}
@@ -158,11 +179,12 @@ func (ctx *Context) Start() error {
 
 }
 
-func (ctx *Context) Stop() error {
+func (ctx *Runtime) Stop() error {
 
-	ctx.cancel()
 	ctx.mu.Lock()
 	defer ctx.mu.Unlock()
+
+	ctx.cancel()
 
 	for _, consumer := range ctx.consumers {
 		if err := consumer.Stop(); err != nil {

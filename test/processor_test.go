@@ -14,8 +14,8 @@ func TestPipelineSum(t *testing.T) {
 		processor.SetHeader("b", expr.Const(1)),
 		processor.Process(func(message *camel.Message) error {
 
-			a, _ := message.Header("a")
-			b, _ := message.Header("b")
+			a, _ := message.Headers().Get("a")
+			b, _ := message.Headers().Get("b")
 			message.SetPayload(a.(int) + b.(int))
 
 			return nil
@@ -40,15 +40,15 @@ func TestSetBodyMul(t *testing.T) {
 
 	mul := processor.SetPayload(expr.Func(func(message *camel.Message) (any, error) {
 
-		a, _ := message.Header("a")
-		b, _ := message.Header("b")
+		a, _ := message.Headers().Get("a")
+		b, _ := message.Headers().Get("b")
 
 		return a.(int) * b.(int), nil
 	}))
 
 	m := camel.NewMessage()
-	m.SetHeader("a", 2)
-	m.SetHeader("b", 3)
+	m.Headers().Set("a", 2)
+	m.Headers().Set("b", 3)
 
 	err := mul.Process(m)
 	if err != nil {

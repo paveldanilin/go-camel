@@ -7,16 +7,18 @@ import (
 
 type Endpoint struct {
 	uri      string
-	queue    chan *camel.Message
 	mu       sync.RWMutex
 	consumer *Consumer
+	producer *Producer
 }
 
 func (e *Endpoint) Uri() string {
+
 	return e.uri
 }
 
-func (e *Endpoint) Consumer(processor camel.Processor) (camel.Consumer, error) {
+func (e *Endpoint) CreateConsumer(processor camel.Processor) (camel.Consumer, error) {
+
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -24,7 +26,6 @@ func (e *Endpoint) Consumer(processor camel.Processor) (camel.Consumer, error) {
 		e.consumer = &Consumer{
 			endpoint:  e,
 			producers: []camel.Producer{processor},
-			running:   false,
 		}
 	} else {
 		e.consumer.producers = append(e.consumer.producers, processor)
@@ -33,15 +34,14 @@ func (e *Endpoint) Consumer(processor camel.Processor) (camel.Consumer, error) {
 	return e.consumer, nil
 }
 
-func (e *Endpoint) Producer() (camel.Producer, error) {
-	return &Producer{endpoint: e}, nil
-}
+func (e *Endpoint) CreateProducer() (camel.Producer, error) {
 
-func (e *Endpoint) SendMessage(message *camel.Message) error {
+	e.mu.Lock()
+	defer e.mu.Unlock()
 
-	for _, producer := range e.consumer.producers {
-		producer.Process(message)
+	if e.producer == nil {
+		e.producer = &Producer{endpoint: e}
 	}
 
-	return nil
+	return e.producer, nil
 }
