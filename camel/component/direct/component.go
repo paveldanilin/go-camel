@@ -12,12 +12,13 @@ func NewComponent() *Component {
 }
 
 func (c Component) Id() string {
+
 	return "direct"
 }
 
-func (c Component) Endpoint(uri string) (camel.Endpoint, error) {
+func (c Component) CreateEndpoint(uri string) (camel.Endpoint, error) {
+
 	return &Endpoint{
-		uri:   "direct:" + uri,
-		queue: make(chan *camel.Message, 100),
+		uri: uri,
 	}, nil
 }

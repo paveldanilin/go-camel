@@ -16,7 +16,7 @@ func To(uri string) *ToProcessor {
 
 func (p *ToProcessor) Process(message *camel.Message) error {
 
-	pp, err := message.Context().Endpoint(p.uri).Producer()
+	pp, err := message.Context().Endpoint(p.uri).CreateProducer()
 	if err != nil {
 		return err
 	}

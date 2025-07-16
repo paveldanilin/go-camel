@@ -1,7 +1,6 @@
 package direct
 
 import (
-	"fmt"
 	"github.com/paveldanilin/go-camel/camel"
 )
 
@@ -10,11 +9,10 @@ type Producer struct {
 }
 
 func (p *Producer) Process(message *camel.Message) error {
-	println(">>>>>>>")
-	select {
-	case p.endpoint.queue <- message:
-		return nil
-	default:
-		return fmt.Errorf("queue is full for endpoint %s", p.endpoint.uri)
+
+	for _, producer := range p.endpoint.consumer.producers {
+		producer.Process(message)
 	}
+
+	return nil
 }

@@ -3,7 +3,7 @@ package timer
 import "github.com/paveldanilin/go-camel/camel"
 
 type Component struct {
-	context *camel.Context
+	runtime *camel.Runtime
 }
 
 func NewComponent() *Component {
@@ -11,16 +11,19 @@ func NewComponent() *Component {
 }
 
 func (c *Component) Id() string {
+
 	return "timer"
 }
 
-func (c *Component) Endpoint(uri string) (camel.Endpoint, error) {
+func (c *Component) CreateEndpoint(uri string) (camel.Endpoint, error) {
+
 	return &Endpoint{
 		component: c,
-		uri:       "timer:" + uri,
+		uri:       uri,
 	}, nil
 }
 
-func (c *Component) SetContext(context *camel.Context) {
-	c.context = context
+func (c *Component) SetContext(context *camel.Runtime) {
+
+	c.runtime = context
 }

@@ -14,18 +14,27 @@ type Endpoint struct {
 }
 
 func (e *Endpoint) Uri() string {
+
 	return e.uri
 }
 
-func (e *Endpoint) Consumer(processor camel.Processor) (camel.Consumer, error) {
+func (e *Endpoint) CreateConsumer(processor camel.Processor) (camel.Consumer, error) {
+
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if e.consumer == nil {
-		e.consumer = &Consumer{
-			processors: []camel.Processor{processor},
-			component:  e.component,
+		consumer, err := NewConsumer(map[string]any{
+			"interval": "5s",
+		})
+		if err != nil {
+			return nil, err
 		}
+
+		consumer.processors = append(consumer.processors, processor)
+		consumer.component = e.component
+
+		e.consumer = consumer
 	} else {
 		e.consumer.processors = append(e.consumer.processors, processor)
 	}
@@ -33,6 +42,7 @@ func (e *Endpoint) Consumer(processor camel.Processor) (camel.Consumer, error) {
 	return e.consumer, nil
 }
 
-func (e *Endpoint) Producer() (camel.Producer, error) {
+func (e *Endpoint) CreateProducer() (camel.Producer, error) {
+
 	return nil, errors.New("timer: producer not supported")
 }
