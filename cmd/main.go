@@ -22,10 +22,12 @@ func main() {
 				return message.MustHeader("a").(int) + message.MustHeader("b").(int), nil
 			})),
 			processor.To("direct:print"),
-			processor.Choice().AddCase(processor.NewChoiceCase(expr.MustSimple("MustHeader('a')>1"), processor.Process(func(message *camel.Message) error {
-				message.SetPayload(444)
-				return nil
-			}))),
+			processor.Choice().
+				When(expr.MustSimple("header.a == 1"), processor.Process(func(message *camel.Message) error {
+					message.SetPayload(444)
+					return nil
+				})).
+				Otherwise(processor.To("direct:x")),
 		),
 	))
 
@@ -39,6 +41,8 @@ func main() {
 	camelRuntime.RegisterRoute(camel.NewRoute("print", "direct:print", processor.LogMessage("print-1")))
 
 	camelRuntime.RegisterRoute(camel.NewRoute("print1", "direct:print", processor.LogMessage("print-2")))
+
+	camelRuntime.RegisterRoute(camel.NewRoute("x", "direct:x", processor.LogMessage("xxx")))
 
 	camelRuntime.Start()
 

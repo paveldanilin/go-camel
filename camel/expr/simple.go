@@ -7,20 +7,23 @@ import (
 )
 
 type SimpleExpr struct {
-	expr string
-	prog *vm.Program
+	expr    string
+	program *vm.Program
 }
 
 func Simple(e string) (*SimpleExpr, error) {
 
-	prog, err := expr.Compile(e, expr.AllowUndefinedVariables())
+	program, err := expr.Compile(e,
+		expr.AllowUndefinedVariables(),
+		expr.Optimize(true),
+		expr.AsAny())
 	if err != nil {
 		return nil, err
 	}
 
 	return &SimpleExpr{
-		expr: e,
-		prog: prog,
+		expr:    e,
+		program: program,
 	}, nil
 }
 
@@ -36,5 +39,11 @@ func MustSimple(e string) *SimpleExpr {
 
 func (e *SimpleExpr) Eval(message *camel.Message) (any, error) {
 
-	return expr.Run(e.prog, message)
+	env := map[string]any{
+		"payload": message.Payload(),
+		"headers": message.MessageHeaders().Headers(),
+		"header":  message.MessageHeaders().Headers(),
+	}
+
+	return expr.Run(e.program, env)
 }

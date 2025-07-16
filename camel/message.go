@@ -1,6 +1,6 @@
 package camel
 
-type ContextProvider interface {
+type RuntimeProvider interface {
 	Component(componentId string) Component
 	Endpoint(uri string) Endpoint
 	Route(routeId string) *Route
@@ -40,9 +40,9 @@ func (h *MessageHeaders) Headers() map[string]any {
 
 type Message struct {
 	id      string
-	context ContextProvider
-	payload any
+	runtime RuntimeProvider
 	headers MessageHeaders
+	payload any
 	err     error
 }
 
@@ -55,9 +55,9 @@ func NewMessage() *Message {
 	}
 }
 
-func NewMessageWithContext(context ContextProvider) *Message {
+func NewMessageWithContext(runtime RuntimeProvider) *Message {
 	return &Message{
-		context: context,
+		runtime: runtime,
 		payload: nil,
 		headers: MessageHeaders{
 			headers: map[string]any{},
@@ -70,9 +70,9 @@ func (m *Message) ID() string {
 	return m.id
 }
 
-func (m *Message) Context() ContextProvider {
+func (m *Message) Context() RuntimeProvider {
 
-	return m.context
+	return m.runtime
 }
 
 func (m *Message) Payload() any {
@@ -85,7 +85,7 @@ func (m *Message) SetPayload(payload any) {
 	m.payload = payload
 }
 
-func (m *Message) Headers() *MessageHeaders {
+func (m *Message) MessageHeaders() *MessageHeaders {
 
 	return &m.headers
 }

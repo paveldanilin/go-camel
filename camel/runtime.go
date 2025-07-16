@@ -108,7 +108,7 @@ func (ctx *Runtime) Send(uri string, payload any, headers map[string]any) (*Mess
 
 		// TODO: message pooling?
 		message := NewMessage()
-		message.context = ctx
+		message.runtime = ctx
 		message.payload = payload
 		message.headers.SetAll(headers)
 
