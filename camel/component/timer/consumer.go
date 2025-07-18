@@ -1,7 +1,6 @@
 package timer
 
 import (
-	"fmt"
 	"github.com/paveldanilin/go-camel/camel"
 	"sync"
 	"time"
@@ -60,16 +59,15 @@ func (c *Consumer) Start() error {
 			case t := <-c.ticker.C:
 				count++
 
-				message := camel.NewMessageWithContext(c.component.runtime)
-
-				message.SetHeader(HeaderTimeFiredTime, t)
-				message.SetHeader(HeaderTimerName, "")
-				message.SetHeader(HeaderTimerCounter, count)
-
 				for _, processor := range c.processors {
-					if err := processor.Process(message); err != nil {
-						fmt.Println("Error processing timer exchange:", err)
-					}
+
+					message := camel.NewMessageWithRuntime(c.component.runtime)
+
+					message.SetHeader(HeaderTimeFiredTime, t)
+					message.SetHeader(HeaderTimerName, "")
+					message.SetHeader(HeaderTimerCounter, count)
+
+					processor.Process(message)
 				}
 			}
 		}

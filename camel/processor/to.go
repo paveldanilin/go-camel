@@ -14,12 +14,13 @@ func To(uri string) *ToProcessor {
 	}
 }
 
-func (p *ToProcessor) Process(message *camel.Message) error {
+func (p *ToProcessor) Process(message *camel.Message) {
 
-	pp, err := message.Context().Endpoint(p.uri).CreateProducer()
+	producer, err := message.Runtime().Endpoint(p.uri).CreateProducer()
 	if err != nil {
-		return err
+		message.SetError(err)
+		return
 	}
 
-	return pp.Process(message)
+	producer.Process(message)
 }

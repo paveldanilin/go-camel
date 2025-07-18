@@ -12,14 +12,13 @@ func SetPayload(value camel.Expr) *SetPayloadProcessor {
 	}
 }
 
-func (p *SetPayloadProcessor) Process(message *camel.Message) error {
+func (p *SetPayloadProcessor) Process(message *camel.Message) {
 
 	value, err := p.value.Eval(message)
 	if err != nil {
-		return nil
+		message.SetError(err)
+		return
 	}
 
 	message.SetPayload(value)
-
-	return nil
 }

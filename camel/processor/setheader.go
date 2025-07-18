@@ -14,14 +14,13 @@ func SetHeader(name string, value camel.Expr) *SetHeaderProcessor {
 	}
 }
 
-func (p *SetHeaderProcessor) Process(message *camel.Message) error {
+func (p *SetHeaderProcessor) Process(message *camel.Message) {
 
 	value, err := p.value.Eval(message)
 	if err != nil {
-		return err
+		message.SetError(err)
+		return
 	}
 
 	message.SetHeader(p.name, value)
-
-	return nil
 }

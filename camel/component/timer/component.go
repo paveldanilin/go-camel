@@ -23,7 +23,7 @@ func (c *Component) CreateEndpoint(uri string) (camel.Endpoint, error) {
 	}, nil
 }
 
-func (c *Component) SetContext(context *camel.Runtime) {
+func (c *Component) SetRuntime(context *camel.Runtime) {
 
 	c.runtime = context
 }
