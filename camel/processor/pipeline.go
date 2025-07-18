@@ -12,14 +12,12 @@ func Pipeline(processors ...camel.Processor) *PipelineProcessor {
 	}
 }
 
-func (p *PipelineProcessor) Process(message *camel.Message) error {
+func (p *PipelineProcessor) Process(message *camel.Message) {
 
 	for _, processor := range p.processors {
-		err := processor.Process(message)
-		if err != nil {
-			return err
+		processor.Process(message)
+		if message.IsError() {
+			break
 		}
 	}
-
-	return nil
 }

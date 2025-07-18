@@ -55,7 +55,7 @@ func NewMessage() *Message {
 	}
 }
 
-func NewMessageWithContext(runtime RuntimeProvider) *Message {
+func NewMessageWithRuntime(runtime RuntimeProvider) *Message {
 	return &Message{
 		runtime: runtime,
 		payload: nil,
@@ -70,7 +70,7 @@ func (m *Message) ID() string {
 	return m.id
 }
 
-func (m *Message) Context() RuntimeProvider {
+func (m *Message) Runtime() RuntimeProvider {
 
 	return m.runtime
 }
@@ -98,6 +98,12 @@ func (m *Message) SetHeader(name string, value any) {
 func (m *Message) Header(name string) (any, bool) {
 
 	return m.headers.Get(name)
+}
+
+func (m *Message) HasHeader(name string) bool {
+
+	_, exists := m.Header(name)
+	return exists
 }
 
 func (m *Message) MustHeader(name string) any {

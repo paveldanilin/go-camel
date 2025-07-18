@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestSimpleEq(t *testing.T) {
+func TestSimpleExpressionEq(t *testing.T) {
 
 	exprEq, err := Simple("header.a == 1")
 	if err != nil {
@@ -21,6 +21,6 @@ func TestSimpleEq(t *testing.T) {
 	}
 
 	if ret.(bool) != true {
-		t.Error("Expected TRUE, but got FALSE")
+		t.Error("TestSimpleExpressionEq() = FALSE; want TRUE")
 	}
 }

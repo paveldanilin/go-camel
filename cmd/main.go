@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"github.com/paveldanilin/go-camel/camel"
 	"github.com/paveldanilin/go-camel/camel/component/direct"
@@ -16,6 +17,19 @@ func main() {
 	camelRuntime.RegisterComponent(direct.NewComponent())
 	camelRuntime.RegisterComponent(timer.NewComponent())
 
+	camelRuntime.RegisterRoute(camel.NewRoute("err", "direct:err",
+		processor.DoTry(processor.Process(func(message *camel.Message) {
+			panic("zZZZ")
+			if !message.HasHeader("a") {
+				message.SetError(errors.New("Not defined header: a"))
+			}
+		})).Catch(func(err error) bool {
+			return err != nil
+		}, processor.Process(func(message *camel.Message) {
+			fmt.Println(">>>>>", message.Error())
+		})),
+	))
+
 	camelRuntime.RegisterRoute(camel.NewRoute("sum", "direct:sum",
 		processor.Pipeline(
 			processor.SetPayload(expr.Func(func(message *camel.Message) (any, error) {
@@ -23,18 +37,16 @@ func main() {
 			})),
 			processor.To("direct:print"),
 			processor.Choice().
-				When(expr.MustSimple("header.a == 1"), processor.Process(func(message *camel.Message) error {
+				When(expr.MustSimple("payload == 40"), processor.Process(func(message *camel.Message) {
 					message.SetPayload(444)
-					return nil
 				})).
 				Otherwise(processor.To("direct:x")),
 		),
 	))
 
 	camelRuntime.RegisterRoute(camel.NewRoute("t", "timer:zzz", processor.Pipeline(
-		processor.Process(func(message *camel.Message) error {
+		processor.Process(func(message *camel.Message) {
 			message.SetPayload(fmt.Sprintf("COUNT: %d", message.Payload()))
-			return nil
 		}),
 		processor.To("direct:print"))))
 
@@ -51,6 +63,8 @@ func main() {
 		"b": 39,
 	})
 	fmt.Printf("%+v\n", m.Payload())
+
+	camelRuntime.Send("direct:err", nil, nil)
 
 	time.Sleep(1 * time.Minute)
 

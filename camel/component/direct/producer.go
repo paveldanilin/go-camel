@@ -8,11 +8,9 @@ type Producer struct {
 	endpoint *Endpoint
 }
 
-func (p *Producer) Process(message *camel.Message) error {
+func (p *Producer) Process(message *camel.Message) {
 
 	for _, producer := range p.endpoint.consumer.producers {
 		producer.Process(message)
 	}
-
-	return nil
 }

@@ -9,7 +9,7 @@ import (
 )
 
 type Processor interface {
-	Process(message *Message) error
+	Process(message *Message)
 }
 
 type Consumer interface {
@@ -32,8 +32,8 @@ type Component interface {
 	CreateEndpoint(uri string) (Endpoint, error)
 }
 
-type ContextAware interface {
-	SetContext(context *Runtime)
+type RuntimeAware interface {
+	SetRuntime(runtime *Runtime)
 }
 
 type Runtime struct {
@@ -64,8 +64,8 @@ func (ctx *Runtime) RegisterComponent(c Component) error {
 		return errors.New("component already registered: " + c.Id())
 	}
 
-	if contextAware, isContextAware := c.(ContextAware); isContextAware {
-		contextAware.SetContext(ctx)
+	if contextAware, isContextAware := c.(RuntimeAware); isContextAware {
+		contextAware.SetRuntime(ctx)
 	}
 
 	ctx.components[c.Id()] = c
@@ -112,10 +112,7 @@ func (ctx *Runtime) Send(uri string, payload any, headers map[string]any) (*Mess
 		message.payload = payload
 		message.headers.SetAll(headers)
 
-		err = producer.Process(message)
-		if err != nil {
-			return nil, err
-		}
+		producer.Process(message)
 
 		return message, nil
 	}
