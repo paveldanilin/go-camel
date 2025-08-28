@@ -42,13 +42,13 @@ type Message struct {
 	id      string
 	runtime RuntimeProvider
 	headers MessageHeaders
-	payload any
-	err     error
+	Body    any
+	Error   error
 }
 
 func NewMessage() *Message {
 	return &Message{
-		payload: nil,
+		Body: nil,
 		headers: MessageHeaders{
 			headers: map[string]any{},
 		},
@@ -58,7 +58,7 @@ func NewMessage() *Message {
 func NewMessageWithRuntime(runtime RuntimeProvider) *Message {
 	return &Message{
 		runtime: runtime,
-		payload: nil,
+		Body:    nil,
 		headers: MessageHeaders{
 			headers: map[string]any{},
 		},
@@ -73,16 +73,6 @@ func (m *Message) ID() string {
 func (m *Message) Runtime() RuntimeProvider {
 
 	return m.runtime
-}
-
-func (m *Message) Payload() any {
-
-	return m.payload
-}
-
-func (m *Message) SetPayload(payload any) {
-
-	m.payload = payload
 }
 
 func (m *Message) MessageHeaders() *MessageHeaders {
@@ -115,17 +105,7 @@ func (m *Message) MustHeader(name string) any {
 	panic("message header not found: '" + name + "'")
 }
 
-func (m *Message) Error() error {
-
-	return m.err
-}
-
-func (m *Message) SetError(err error) {
-
-	m.err = err
-}
-
 func (m *Message) IsError() bool {
 
-	return m.err != nil
+	return m.Error != nil
 }

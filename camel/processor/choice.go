@@ -17,13 +17,13 @@ func Choice() *ChoiceProcessor {
 }
 
 type choiceWhen struct {
-	cond      camel.Expr
+	predicate camel.Expr
 	processor camel.Processor
 }
 
-func (when *choiceWhen) isMatch(message *camel.Message) bool {
+func (when *choiceWhen) match(message *camel.Message) bool {
 
-	v, err := when.cond.Eval(message)
+	v, err := when.predicate.Eval(message)
 	if err != nil {
 		panic(err)
 	}
@@ -31,9 +31,9 @@ func (when *choiceWhen) isMatch(message *camel.Message) bool {
 	return v.(bool)
 }
 
-func (p *ChoiceProcessor) When(cond camel.Expr, processor camel.Processor) *ChoiceProcessor {
+func (p *ChoiceProcessor) When(predicate camel.Expr, processor camel.Processor) *ChoiceProcessor {
 
-	p.cases = append(p.cases, &choiceWhen{cond: cond, processor: processor})
+	p.cases = append(p.cases, &choiceWhen{predicate: predicate, processor: processor})
 	return p
 }
 
@@ -47,7 +47,7 @@ func (p *ChoiceProcessor) Process(message *camel.Message) {
 
 	whenMatched := false
 	for _, when := range p.cases {
-		if when.isMatch(message) {
+		if when.match(message) {
 			whenMatched = true
 			when.processor.Process(message)
 			break

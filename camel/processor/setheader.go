@@ -18,7 +18,7 @@ func (p *SetHeaderProcessor) Process(message *camel.Message) {
 
 	value, err := p.value.Eval(message)
 	if err != nil {
-		message.SetError(err)
+		message.Error = err
 		return
 	}
 
