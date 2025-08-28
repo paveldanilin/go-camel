@@ -6,15 +6,15 @@ import (
 )
 
 type DoTryProcessor struct {
-	tryProcessor     camel.Processor
-	catchClauses     []catchClause
-	finallyProcessor camel.Processor
+	processors        []camel.Processor
+	catchClauses      []catchClause
+	finallyProcessors []camel.Processor
 }
 
-func DoTry(try camel.Processor) *DoTryProcessor {
+func DoTry(processors ...camel.Processor) *DoTryProcessor {
 
 	return &DoTryProcessor{
-		tryProcessor: try,
+		processors:   processors,
 		catchClauses: []catchClause{},
 	}
 }
@@ -34,35 +34,23 @@ func (p *DoTryProcessor) Catch(predicate func(error) bool, handler camel.Process
 	return p
 }
 
-func (p *DoTryProcessor) Finally(finally camel.Processor) *DoTryProcessor {
+func (p *DoTryProcessor) Finally(finally ...camel.Processor) *DoTryProcessor {
 
-	p.finallyProcessor = finally
+	p.finallyProcessors = append(p.finallyProcessors, finally...)
 
 	return p
 }
 
 func (p *DoTryProcessor) Process(message *camel.Message) {
 
-	// Catches panic
-	safeProcess := func(p camel.Processor) (panicked bool) {
-
-		defer func() {
-			if r := recover(); r != nil {
-				message.SetError(fmt.Errorf("panic recovered: %v", r))
-				panicked = true
-			}
-		}()
-
-		p.Process(message)
-		return false
-	}
-
-	// Original error
 	var originalErr error
 
 	// Try-block
-	if safeProcess(p.tryProcessor) {
-		originalErr = message.Error()
+	for _, processor := range p.processors {
+		if Invoke(processor, message) || message.IsError() {
+			originalErr = message.Error
+			break
+		}
 	}
 
 	// Catch-block
@@ -71,10 +59,10 @@ func (p *DoTryProcessor) Process(message *camel.Message) {
 		for _, c := range p.catchClauses {
 			if c.predicate(originalErr) {
 				// Execute handler
-				safeProcess(c.handler)
+				Invoke(c.handler, message)
 				caught = true
 				// Clear error on success handling (Camel-like style).
-				message.SetError(nil)
+				message.Error = nil
 				// First match only
 				break
 			}
@@ -82,17 +70,19 @@ func (p *DoTryProcessor) Process(message *camel.Message) {
 	}
 
 	// Finally-block
-	if p.finallyProcessor != nil {
-		safeProcess(p.finallyProcessor) // Collect error/panic
+	if len(p.finallyProcessors) > 0 {
+		for _, p := range p.finallyProcessors {
+			Invoke(p, message)
+		}
 
 		// In case of error/panic in finally , combines with originalErr (if any)
 		if message.IsError() && originalErr != nil && !caught {
-			message.SetError(fmt.Errorf("original error: %w; finally error: %v", originalErr, message.Error()))
+			message.Error = fmt.Errorf("original error: %w; finally error: %v", originalErr, message.Error)
 		}
 	}
 
 	// Restore originalErr if catch-block does not catch error
-	if originalErr != nil && !caught && message.Error() == nil {
-		message.SetError(originalErr)
+	if originalErr != nil && !caught && message.Error == nil {
+		message.Error = originalErr
 	}
 }

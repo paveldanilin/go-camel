@@ -21,24 +21,24 @@ func main() {
 		processor.DoTry(processor.Process(func(message *camel.Message) {
 			panic("zZZZ")
 			if !message.HasHeader("a") {
-				message.SetError(errors.New("Not defined header: a"))
+				message.Error = errors.New("Not defined header: a")
 			}
 		})).Catch(func(err error) bool {
 			return err != nil
 		}, processor.Process(func(message *camel.Message) {
-			fmt.Println(">>>>>", message.Error())
+			fmt.Println(">>>>>", message.Error)
 		})),
 	))
 
 	camelRuntime.RegisterRoute(camel.NewRoute("sum", "direct:sum",
 		processor.Pipeline(
-			processor.SetPayload(expr.Func(func(message *camel.Message) (any, error) {
+			processor.SetBody(expr.Func(func(message *camel.Message) (any, error) {
 				return message.MustHeader("a").(int) + message.MustHeader("b").(int), nil
 			})),
 			processor.To("direct:print"),
 			processor.Choice().
 				When(expr.MustSimple("payload == 40"), processor.Process(func(message *camel.Message) {
-					message.SetPayload(444)
+					message.Body = 444
 				})).
 				Otherwise(processor.To("direct:x")),
 		),
@@ -46,7 +46,7 @@ func main() {
 
 	camelRuntime.RegisterRoute(camel.NewRoute("t", "timer:zzz", processor.Pipeline(
 		processor.Process(func(message *camel.Message) {
-			message.SetPayload(fmt.Sprintf("COUNT: %d", message.Payload()))
+			message.Body = fmt.Sprintf("COUNT: %d", message.Body)
 		}),
 		processor.To("direct:print"))))
 
@@ -62,7 +62,7 @@ func main() {
 		"a": 1,
 		"b": 39,
 	})
-	fmt.Printf("%+v\n", m.Payload())
+	fmt.Printf("%+v\n", m.Body)
 
 	camelRuntime.Send("direct:err", nil, nil)
 

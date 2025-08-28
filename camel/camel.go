@@ -8,6 +8,10 @@ import (
 	"sync"
 )
 
+type Expr interface {
+	Eval(message *Message) (any, error)
+}
+
 type Processor interface {
 	Process(message *Message)
 }
@@ -109,7 +113,7 @@ func (ctx *Runtime) Send(uri string, payload any, headers map[string]any) (*Mess
 		// TODO: message pooling?
 		message := NewMessage()
 		message.runtime = ctx
-		message.payload = payload
+		message.Body = payload
 		message.headers.SetAll(headers)
 
 		producer.Process(message)

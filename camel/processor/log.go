@@ -17,5 +17,5 @@ func LogMessage(prefix string) *LogProcessor {
 
 func (p *LogProcessor) Process(message *camel.Message) {
 
-	fmt.Printf("%s payload=%+v; headers=%+v\n", p.prefix, message.Payload(), message.MessageHeaders())
+	fmt.Printf("%s body=%+v; headers=%+v\n", p.prefix, message.Body, message.MessageHeaders())
 }

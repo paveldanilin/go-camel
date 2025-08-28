@@ -40,9 +40,12 @@ func MustSimple(e string) *SimpleExpr {
 func (e *SimpleExpr) Eval(message *camel.Message) (any, error) {
 
 	env := map[string]any{
-		"payload": message.Payload(),
+		"body":    message.Body,
 		"headers": message.MessageHeaders().Headers(),
 		"header":  message.MessageHeaders().Headers(),
+		"properties": map[string]any{
+			"error": message.Error,
+		},
 	}
 
 	return expr.Run(e.program, env)

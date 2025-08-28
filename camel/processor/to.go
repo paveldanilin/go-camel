@@ -18,7 +18,7 @@ func (p *ToProcessor) Process(message *camel.Message) {
 
 	producer, err := message.Runtime().Endpoint(p.uri).CreateProducer()
 	if err != nil {
-		message.SetError(err)
+		message.Error = err
 		return
 	}
 
