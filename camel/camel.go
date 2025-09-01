@@ -4,16 +4,17 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/paveldanilin/go-camel/camel/component"
+	"github.com/paveldanilin/go-camel/camel/uri"
+	"log"
 	"sync"
 )
 
 type Expr interface {
-	Eval(message *Message) (any, error)
+	Eval(exchange *Exchange) (any, error)
 }
 
 type Processor interface {
-	Process(message *Message)
+	Process(exchange *Exchange)
 }
 
 type Consumer interface {
@@ -26,7 +27,7 @@ type Producer interface {
 }
 
 type Endpoint interface {
-	Uri() string
+	Uri() *uri.URI
 	CreateConsumer(processor Processor) (Consumer, error)
 	CreateProducer() (Producer, error)
 }
@@ -62,141 +63,154 @@ func NewRuntime() *Runtime {
 	}
 }
 
-func (ctx *Runtime) RegisterComponent(c Component) error {
-
-	if _, exists := ctx.components[c.Id()]; exists {
+func (rt *Runtime) RegisterComponent(c Component) error {
+	if _, exists := rt.components[c.Id()]; exists {
 		return errors.New("component already registered: " + c.Id())
 	}
 
 	if contextAware, isContextAware := c.(RuntimeAware); isContextAware {
-		contextAware.SetRuntime(ctx)
+		contextAware.SetRuntime(rt)
 	}
 
-	ctx.components[c.Id()] = c
+	rt.components[c.Id()] = c
 
 	return nil
 }
 
-func (ctx *Runtime) Component(componentId string) Component {
+func (rt *Runtime) MustRegisterComponent(c Component) {
+	err := rt.RegisterComponent(c)
+	if err != nil {
+		panic(err)
+	}
+}
 
-	if c, exists := ctx.components[componentId]; exists {
+func (rt *Runtime) Component(componentId string) Component {
+	if c, exists := rt.components[componentId]; exists {
 		return c
 	}
 
 	return nil
 }
 
-func (ctx *Runtime) RegisterRoute(r *Route) error {
-
-	if _, exists := ctx.routes[r.id]; exists {
+func (rt *Runtime) RegisterRoute(r *Route) error {
+	if _, exists := rt.routes[r.id]; exists {
 		return errors.New("route already registered: " + r.id)
 	}
 
-	ctx.routes[r.id] = r
+	rt.routes[r.id] = r
 
 	return nil
 }
 
-func (ctx *Runtime) Endpoint(uri string) Endpoint {
-
-	return ctx.endpoints[uri]
+func (rt *Runtime) MustRegisterRoute(r *Route) {
+	err := rt.RegisterRoute(r)
+	if err != nil {
+		panic(err)
+	}
 }
 
-func (ctx *Runtime) Send(uri string, payload any, headers map[string]any) (*Message, error) {
+func (rt *Runtime) Endpoint(uri string) Endpoint {
+	if endpoint, exists := rt.endpoints[uri]; exists {
+		return endpoint
+	}
+	return nil
+}
 
-	if endpoint, exists := ctx.endpoints[uri]; exists {
+func (rt *Runtime) Send(uri string, body any, headers map[string]any) (*Message, error) {
+	if endpoint, exists := rt.endpoints[uri]; exists {
 		producer, err := endpoint.CreateProducer()
 		if err != nil {
 			return nil, err
 		}
 
-		// TODO: message pooling?
-		message := NewMessage()
-		message.runtime = ctx
-		message.Body = payload
-		message.headers.SetAll(headers)
+		e := NewExchange(nil, rt)
+		e.message.Body = body
+		e.message.headers.SetAll(headers)
 
-		producer.Process(message)
+		producer.Process(e)
 
-		return message, nil
+		return e.message, nil
 	}
 
 	return nil, errors.New("endpoint not found for uri: " + uri)
 }
 
-func (ctx *Runtime) Route(routeId string) *Route {
-
-	if r, exists := ctx.routes[routeId]; exists {
+func (rt *Runtime) Route(routeId string) *Route {
+	if r, exists := rt.routes[routeId]; exists {
 		return r
 	}
 
 	return nil
 }
 
-func (ctx *Runtime) Start() error {
+func (rt *Runtime) Start() error {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
 
-	ctx.mu.Lock()
-	defer ctx.mu.Unlock()
+	for _, route := range rt.routes {
+		log.Printf("Registering route: '%s'", route.id)
 
-	for _, route := range ctx.routes {
-
-		parts := component.SplitURI(route.from)
-		if len(parts) != 2 {
-			return fmt.Errorf("invalid URI format: %s", route.from)
+		fromUri, err := uri.Parse(route.from, nil)
+		if err != nil {
+			return fmt.Errorf("invalid URI format in route '%s' that consumes from [%s]: %w", route.id, route.from, err)
 		}
 
-		componentName, uri := parts[0], parts[1]
-		component, exists := ctx.components[componentName]
-		if !exists {
-			return fmt.Errorf("component not found: %s", componentName)
+		log.Printf("Route uri parsed: %s", fromUri)
+
+		// Resolve component
+		component, componentExists := rt.components[fromUri.Component()]
+		if !componentExists {
+			return fmt.Errorf("component '%s' not found in route '%s' that consumes from [%s]", fromUri.Component(), route.id, route.from)
 		}
 
-		if endpoint, exists := ctx.endpoints[route.from]; exists {
-			_, err := endpoint.CreateConsumer(route.producer)
+		log.Printf("Compoentn resolved: %s", fromUri.Component())
+
+		// Resolve/create endpoint
+		endpoint, endpointExists := rt.endpoints[route.from]
+		if !endpointExists {
+			endpoint, err = component.CreateEndpoint(route.from)
 			if err != nil {
-				return fmt.Errorf("zzz: %w", err)
+				return fmt.Errorf("failed to create endpoint in route '%s' that consumes from [%s]: %w", route.id, route.from, err)
 			}
-		} else {
-			endpoint, err := component.CreateEndpoint(uri)
-			if err != nil {
-				return fmt.Errorf("failed to create endpoint: %w", err)
-			}
-			ctx.endpoints[route.from] = endpoint
-			consumer, err := endpoint.CreateConsumer(route.producer)
-			if err != nil {
-				return fmt.Errorf("zzz: %w", err)
-			}
-			ctx.consumers = append(ctx.consumers, consumer)
+			rt.endpoints[route.from] = endpoint
 		}
+
+		log.Printf("Endpoint created")
+
+		// Create consumer
+		consumer, err := endpoint.CreateConsumer(route.producer)
+		if err != nil {
+			return fmt.Errorf("failed to create consumer in route '%s' that consumes from [%s]: %w", route.id, route.from, err)
+		}
+		rt.consumers = append(rt.consumers, consumer)
 	}
 
-	for _, consumer := range ctx.consumers {
+	// Start consumers
+	for _, consumer := range rt.consumers {
 		if err := consumer.Start(); err != nil {
 			return err
 		}
 	}
 
 	return nil
-
 }
 
-func (ctx *Runtime) Stop() error {
+func (rt *Runtime) Stop() error {
+	rt.mu.Lock()
+	defer rt.mu.Unlock()
 
-	ctx.mu.Lock()
-	defer ctx.mu.Unlock()
+	rt.cancel()
 
-	ctx.cancel()
-
-	for _, consumer := range ctx.consumers {
+	for _, consumer := range rt.consumers {
 		if err := consumer.Stop(); err != nil {
 			return err
 		}
 	}
 
-	ctx.consumers = nil
-	ctx.endpoints = nil
-	ctx.components = nil
-	ctx.routes = nil
+	rt.consumers = nil
+	rt.endpoints = nil
+	rt.components = nil
+	rt.routes = nil
 
 	return nil
 }

@@ -9,14 +9,14 @@ type LoopProcessor struct {
 	count int
 	// predicate - условие для продолжения цикла (while predicate(m) == true).
 	// Если nil, игнорируется.
-	predicate func(message *camel.Message) bool
+	predicate func(exchange *camel.Exchange) bool
 	// processors - процессоры, выполняемые в каждой итерации.
 	processors []camel.Processor
 	// copy - если true, каждая итерация работает на shallow копии Message.
 	copy bool
 }
 
-func Loop(count int, predicate func(message *camel.Message) bool, processors ...camel.Processor) *LoopProcessor {
+func Loop(count int, predicate func(exchange *camel.Exchange) bool, processors ...camel.Processor) *LoopProcessor {
 
 	return &LoopProcessor{
 		count:      count,
@@ -26,7 +26,12 @@ func Loop(count int, predicate func(message *camel.Message) bool, processors ...
 	}
 }
 
-func (p *LoopProcessor) Process(message *camel.Message) {
+func (p *LoopProcessor) Process(exchange *camel.Exchange) {
+	if err := exchange.CheckCancelOrTimeout(); err != nil {
+		exchange.Error = err
+		return
+	}
+
 	if len(p.processors) == 0 {
 		return // Нет процессоров - ничего не делаем.
 	}
@@ -37,23 +42,23 @@ func (p *LoopProcessor) Process(message *camel.Message) {
 		if p.count > 0 && iterations >= p.count {
 			break
 		}
-		if p.predicate != nil && !p.predicate(message) {
+		if p.predicate != nil && !p.predicate(exchange) {
 			break
 		}
 
 		// Если copy, создаём shallow копию.
-		var current *camel.Message
+		var current *camel.Exchange
 		if p.copy {
-			copy := *message // Shallow copy.
+			copy := *exchange // Shallow copy.
 			current = &copy
 		} else {
-			current = message
+			current = exchange
 		}
 
 		// Выполняем процессоры в итерации.
 		breakIteration := false
 		for _, processor := range p.processors {
-			if Invoke(processor, message) || current.Error != nil {
+			if InvokeWithRecovery(processor, exchange) || current.Error != nil {
 				breakIteration = true
 				break
 			}
@@ -61,11 +66,11 @@ func (p *LoopProcessor) Process(message *camel.Message) {
 
 		// Если copy, копируем изменения обратно (включая Err).
 		if p.copy {
-			*message = *current
+			*exchange = *current
 		}
 
 		// Если ошибка/panic в итерации, прерываем весь цикл.
-		if breakIteration || message.IsError() {
+		if breakIteration || exchange.IsError() {
 			break
 		}
 

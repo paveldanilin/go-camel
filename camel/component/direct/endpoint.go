@@ -2,23 +2,22 @@ package direct
 
 import (
 	"github.com/paveldanilin/go-camel/camel"
+	"github.com/paveldanilin/go-camel/camel/uri"
 	"sync"
 )
 
 type Endpoint struct {
-	uri      string
+	uri      *uri.URI
 	mu       sync.RWMutex
 	consumer *Consumer
 	producer *Producer
 }
 
-func (e *Endpoint) Uri() string {
-
+func (e *Endpoint) Uri() *uri.URI {
 	return e.uri
 }
 
 func (e *Endpoint) CreateConsumer(processor camel.Processor) (camel.Consumer, error) {
-
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -35,7 +34,6 @@ func (e *Endpoint) CreateConsumer(processor camel.Processor) (camel.Consumer, er
 }
 
 func (e *Endpoint) CreateProducer() (camel.Producer, error) {
-
 	e.mu.Lock()
 	defer e.mu.Unlock()
 

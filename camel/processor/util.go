@@ -5,16 +5,15 @@ import (
 	"github.com/paveldanilin/go-camel/camel"
 )
 
-// Invoke invokes processor with recovery
-func Invoke(p camel.Processor, message *camel.Message) (panicked bool) {
-
+// InvokeWithRecovery invokes processor with recovery
+func InvokeWithRecovery(p camel.Processor, exchange *camel.Exchange) (panicked bool) {
 	defer func() {
 		if r := recover(); r != nil {
-			message.Error = fmt.Errorf("panic recovered: %v", r)
+			exchange.Error = fmt.Errorf("panic recovered: %v", r)
 			panicked = true
 		}
 	}()
 
-	p.Process(message)
+	p.Process(exchange)
 	return false
 }

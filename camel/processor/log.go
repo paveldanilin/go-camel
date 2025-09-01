@@ -15,7 +15,11 @@ func LogMessage(prefix string) *LogProcessor {
 	}
 }
 
-func (p *LogProcessor) Process(message *camel.Message) {
+func (p *LogProcessor) Process(exchange *camel.Exchange) {
+	if err := exchange.CheckCancelOrTimeout(); err != nil {
+		exchange.Error = err
+		return
+	}
 
-	fmt.Printf("%s body=%+v; headers=%+v\n", p.prefix, message.Body, message.MessageHeaders())
+	fmt.Printf("%s body=%+v; headers=%+v\n", p.prefix, exchange.Message().Body, exchange.Message().Headers())
 }

@@ -1,6 +1,9 @@
 package timer
 
-import "github.com/paveldanilin/go-camel/camel"
+import (
+	"github.com/paveldanilin/go-camel/camel"
+	u "github.com/paveldanilin/go-camel/camel/uri"
+)
 
 type Component struct {
 	runtime *camel.Runtime
@@ -11,19 +14,18 @@ func NewComponent() *Component {
 }
 
 func (c *Component) Id() string {
-
 	return "timer"
 }
 
 func (c *Component) CreateEndpoint(uri string) (camel.Endpoint, error) {
+	parsedUri, err := u.Parse(uri, nil)
+	if err != nil {
+		return nil, err
+	}
 
-	return &Endpoint{
-		component: c,
-		uri:       uri,
-	}, nil
+	return NewEndpoint(parsedUri, c)
 }
 
-func (c *Component) SetRuntime(context *camel.Runtime) {
-
-	c.runtime = context
+func (c *Component) SetRuntime(rt *camel.Runtime) {
+	c.runtime = rt
 }

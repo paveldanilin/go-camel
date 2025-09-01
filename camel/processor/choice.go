@@ -10,51 +10,57 @@ type ChoiceProcessor struct {
 }
 
 func Choice() *ChoiceProcessor {
-
 	return &ChoiceProcessor{
 		cases: []*choiceWhen{},
 	}
 }
 
-type choiceWhen struct {
-	predicate camel.Expr
-	processor camel.Processor
-}
-
-func (when *choiceWhen) match(message *camel.Message) bool {
-
-	v, err := when.predicate.Eval(message)
-	if err != nil {
-		panic(err)
-	}
-
-	return v.(bool)
-}
-
 func (p *ChoiceProcessor) When(predicate camel.Expr, processor camel.Processor) *ChoiceProcessor {
-
 	p.cases = append(p.cases, &choiceWhen{predicate: predicate, processor: processor})
 	return p
 }
 
 func (p *ChoiceProcessor) Otherwise(processor camel.Processor) *ChoiceProcessor {
-
 	p.otherwise = processor
 	return p
 }
 
-func (p *ChoiceProcessor) Process(message *camel.Message) {
+func (p *ChoiceProcessor) Process(exchange *camel.Exchange) {
+	if err := exchange.CheckCancelOrTimeout(); err != nil {
+		exchange.Error = err
+		return
+	}
 
 	whenMatched := false
-	for _, when := range p.cases {
-		if when.match(message) {
+
+	for _, whenCase := range p.cases {
+		if whenCase.match(exchange) {
 			whenMatched = true
-			when.processor.Process(message)
+			whenCase.processor.Process(exchange)
 			break
 		}
 	}
 
 	if !whenMatched && p.otherwise != nil {
-		p.otherwise.Process(message)
+		if err := exchange.CheckCancelOrTimeout(); err != nil {
+			exchange.Error = err
+			return
+		}
+		p.otherwise.Process(exchange)
 	}
+}
+
+// choiceWhen represents a single when check of ChoiceProcessor
+type choiceWhen struct {
+	predicate camel.Expr
+	processor camel.Processor
+}
+
+func (when *choiceWhen) match(exchange *camel.Exchange) bool {
+	v, err := when.predicate.Eval(exchange)
+	if err != nil {
+		panic(err)
+	}
+
+	return v.(bool)
 }

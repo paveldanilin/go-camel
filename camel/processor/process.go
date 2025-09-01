@@ -2,9 +2,13 @@ package processor
 
 import "github.com/paveldanilin/go-camel/camel"
 
-type Process func(message *camel.Message)
+type Process func(exchange *camel.Exchange)
 
-func (p Process) Process(message *camel.Message) {
+func (p Process) Process(exchange *camel.Exchange) {
+	if err := exchange.CheckCancelOrTimeout(); err != nil {
+		exchange.Error = err
+		return
+	}
 
-	p(message)
+	p(exchange)
 }

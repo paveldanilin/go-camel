@@ -9,26 +9,25 @@ import (
 )
 
 func TestPipelineProcessor(t *testing.T) {
-
 	sum := processor.Pipeline(
 		processor.SetHeader("a", expr.Const(1)),
 		processor.SetHeader("b", expr.Const(1)),
-		processor.Process(func(message *camel.Message) {
+		processor.Process(func(exchange *camel.Exchange) {
 
-			a, _ := message.MessageHeaders().Get("a")
-			b, _ := message.MessageHeaders().Get("b")
-			message.Body = a.(int) + b.(int)
+			a, _ := exchange.Message().Headers().Get("a")
+			b, _ := exchange.Message().Headers().Get("b")
+			exchange.Message().Body = a.(int) + b.(int)
 
 		}))
 
-	m := camel.NewMessage()
+	exchange := camel.NewExchange(nil, nil)
 
-	sum.Process(m)
-	if m.IsError() {
-		panic(m.Error)
+	sum.Process(exchange)
+	if exchange.IsError() {
+		panic(exchange.Error)
 	}
 
-	result := m.Body
+	result := exchange.Message().Body
 	expected := 2
 
 	if result != expected {
@@ -37,25 +36,24 @@ func TestPipelineProcessor(t *testing.T) {
 }
 
 func TestSetPayloadProcessor(t *testing.T) {
+	mul := processor.SetBody(expr.Func(func(exchange *camel.Exchange) (any, error) {
 
-	mul := processor.SetBody(expr.Func(func(message *camel.Message) (any, error) {
-
-		a := message.MustHeader("a")
-		b := message.MustHeader("b")
+		a := exchange.Message().MustHeader("a")
+		b := exchange.Message().MustHeader("b")
 
 		return a.(int) * b.(int), nil
 	}))
 
-	m := camel.NewMessage()
-	m.MessageHeaders().Set("a", 2)
-	m.MessageHeaders().Set("b", 3)
+	exchange := camel.NewExchange(nil, nil)
+	exchange.Message().Headers().Set("a", 2)
+	exchange.Message().Headers().Set("b", 3)
 
-	mul.Process(m)
-	if m.IsError() {
-		panic(m.Error)
+	mul.Process(exchange)
+	if exchange.IsError() {
+		panic(exchange.Error)
 	}
 
-	result := m.Body
+	result := exchange.Message().Body
 	expected := 6
 
 	if result != expected {
@@ -64,7 +62,6 @@ func TestSetPayloadProcessor(t *testing.T) {
 }
 
 func TestDoTryProcessor_Error(t *testing.T) {
-
 	var mandatoryParameterMissingErr = errors.New("mandatory parameter missing")
 
 	tryBlock := processor.DoTry(
@@ -74,44 +71,43 @@ func TestDoTryProcessor_Error(t *testing.T) {
 		processor.Choice().When(expr.MustSimple("body == 2"), processor.SetError(mandatoryParameterMissingErr)),
 	).
 		Catch(camel.ErrorContains("mandatory parameter missing"),
-			processor.SetHeader("ERROR", expr.MustSimple("properties.error"))).
+			processor.SetHeader("ERROR", expr.MustSimple("exchange.error"))).
 		Finally(processor.SetBody(expr.Const("RESULT")))
 
-	m := camel.NewMessage()
+	exchange := camel.NewExchange(nil, nil)
 
-	tryBlock.Process(m)
+	tryBlock.Process(exchange)
 
-	if !errors.Is(m.MustHeader("ERROR").(error), mandatoryParameterMissingErr) {
-		t.Errorf("TestDoTryProcessor_Error() = %v; want %v", m.Error, mandatoryParameterMissingErr)
+	if !errors.Is(exchange.Message().MustHeader("ERROR").(error), mandatoryParameterMissingErr) {
+		t.Errorf("TestDoTryProcessor_Error() = %v; want %v", exchange.Error, mandatoryParameterMissingErr)
 	}
 
 	expected := "RESULT"
-	if m.Body != expected {
-		t.Errorf("TestDoTryProcessor_Error() = %v; want %s", m.Body, expected)
+	if exchange.Message().Body != expected {
+		t.Errorf("TestDoTryProcessor_Error() = %v; want %s", exchange.Message().Body, expected)
 	}
 }
 
 func TestChoiceProcessor(t *testing.T) {
-
 	choice := processor.Choice().
 		When(expr.MustSimple("header.val > 5"), processor.SetBody(expr.Const(555))).
 		When(expr.MustSimple("header.val < 5"), processor.SetBody(expr.Const(777)))
 
-	m := camel.NewMessage()
-	m.SetHeader("val", 2)
+	exchange := camel.NewExchange(nil, nil)
+	exchange.Message().SetHeader("val", 2)
 
-	choice.Process(m)
+	choice.Process(exchange)
 
 	expected := 777
-	if m.Body != expected {
-		t.Errorf("TestChoiceProcessor() = %v; want %v", m.Body, expected)
+	if exchange.Message().Body != expected {
+		t.Errorf("TestChoiceProcessor() = %v; want %v", exchange.Message().Body, expected)
 	}
 }
 
 func TestLoopProcessor(t *testing.T) {
-
 	loop := processor.Loop(5, nil, processor.LogMessage(">"))
 
-	m := camel.NewMessage()
-	loop.Process(m)
+	exchange := camel.NewExchange(nil, nil)
+
+	loop.Process(exchange)
 }

@@ -10,11 +10,9 @@ type Consumer struct {
 }
 
 func (c *Consumer) Start() error {
-
 	return nil
 }
 
 func (c *Consumer) Stop() error {
-
 	return nil
 }
