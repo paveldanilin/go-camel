@@ -12,8 +12,8 @@ func TestSimpleExpressionEq(t *testing.T) {
 		panic(err)
 	}
 
-	m := camel.NewMessage()
-	m.SetHeader("a", 1)
+	m := camel.NewExchange(nil, nil)
+	m.Message().SetHeader("a", 1)
 
 	ret, err := exprEq.Eval(m)
 	if err != nil {

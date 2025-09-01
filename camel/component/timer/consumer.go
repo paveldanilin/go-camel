@@ -2,6 +2,7 @@ package timer
 
 import (
 	"github.com/paveldanilin/go-camel/camel"
+	"log"
 	"sync"
 	"time"
 )
@@ -16,28 +17,19 @@ type Consumer struct {
 	mu         sync.Mutex
 	done       chan struct{}
 	running    bool
-	component  *Component
+	endpoint   *Endpoint
 	processors []camel.Processor
-
-	ticker   *time.Ticker
-	interval time.Duration
+	ticker     *time.Ticker
 }
 
-func NewConsumer(params map[string]any) (*Consumer, error) {
-
-	dur, err := time.ParseDuration(params["interval"].(string))
-	if err != nil {
-		return nil, err
-	}
-
+func NewConsumer(endpoint *Endpoint) (*Consumer, error) {
 	return &Consumer{
+		endpoint:   endpoint,
 		processors: []camel.Processor{},
-		interval:   dur,
 	}, nil
 }
 
 func (c *Consumer) Start() error {
-
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -45,7 +37,9 @@ func (c *Consumer) Start() error {
 		return nil
 	}
 
-	c.ticker = time.NewTicker(c.interval)
+	log.Printf("timer: '%s' with interval '%d'", c.endpoint.name, c.endpoint.interval)
+
+	c.ticker = time.NewTicker(c.endpoint.interval)
 	c.done = make(chan struct{})
 	c.running = true
 
@@ -58,16 +52,13 @@ func (c *Consumer) Start() error {
 				return
 			case t := <-c.ticker.C:
 				count++
-
 				for _, processor := range c.processors {
+					exchange := camel.NewExchange(nil, c.endpoint.component.runtime)
+					exchange.Message().SetHeader(HeaderTimeFiredTime, t)
+					exchange.Message().SetHeader(HeaderTimerName, c.endpoint.name)
+					exchange.Message().SetHeader(HeaderTimerCounter, count)
 
-					message := camel.NewMessageWithRuntime(c.component.runtime)
-
-					message.SetHeader(HeaderTimeFiredTime, t)
-					message.SetHeader(HeaderTimerName, "")
-					message.SetHeader(HeaderTimerCounter, count)
-
-					processor.Process(message)
+					processor.Process(exchange)
 				}
 			}
 		}
@@ -77,7 +68,6 @@ func (c *Consumer) Start() error {
 }
 
 func (c *Consumer) Stop() error {
-
 	c.mu.Lock()
 	defer c.mu.Unlock()
 

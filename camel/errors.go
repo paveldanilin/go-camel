@@ -7,7 +7,6 @@ import (
 )
 
 func ErrorEquals(str string) func(error) bool {
-
 	return func(err error) bool {
 		if err == nil {
 			return false
@@ -18,7 +17,6 @@ func ErrorEquals(str string) func(error) bool {
 }
 
 func ErrorContains(substr string) func(error) bool {
-
 	substrLower := strings.ToLower(substr)
 
 	return func(err error) bool {
@@ -33,14 +31,12 @@ func ErrorContains(substr string) func(error) bool {
 }
 
 func ErrorIs(target string) func(error) bool {
-
 	return func(err error) bool {
 		return errors.Is(err, errors.New(target))
 	}
 }
 
 func ErrorMatches(pattern string) func(error) bool {
-
 	return func(err error) bool {
 		if err == nil {
 			return false
@@ -51,7 +47,6 @@ func ErrorMatches(pattern string) func(error) bool {
 }
 
 func ErrorAny() func(error) bool {
-
 	return func(err error) bool {
 		return err != nil
 	}

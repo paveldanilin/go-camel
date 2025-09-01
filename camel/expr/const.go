@@ -12,7 +12,6 @@ func Const(value any) *ConstExpr {
 	}
 }
 
-func (e *ConstExpr) Eval(_ *camel.Message) (any, error) {
-
+func (e *ConstExpr) Eval(_ *camel.Exchange) (any, error) {
 	return e.value, nil
 }

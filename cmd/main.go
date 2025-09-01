@@ -1,70 +1,77 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"github.com/paveldanilin/go-camel/camel"
 	"github.com/paveldanilin/go-camel/camel/component/direct"
 	"github.com/paveldanilin/go-camel/camel/component/timer"
 	"github.com/paveldanilin/go-camel/camel/expr"
 	"github.com/paveldanilin/go-camel/camel/processor"
+	"log"
 	"time"
 )
 
 func main() {
 
 	camelRuntime := camel.NewRuntime()
-	camelRuntime.RegisterComponent(direct.NewComponent())
-	camelRuntime.RegisterComponent(timer.NewComponent())
+	camelRuntime.MustRegisterComponent(direct.NewComponent())
+	camelRuntime.MustRegisterComponent(timer.NewComponent())
 
-	camelRuntime.RegisterRoute(camel.NewRoute("err", "direct:err",
-		processor.DoTry(processor.Process(func(message *camel.Message) {
+	camelRuntime.MustRegisterRoute(camel.NewRoute("err", "direct:err",
+		processor.DoTry(processor.Process(func(exchange *camel.Exchange) {
 			panic("zZZZ")
-			if !message.HasHeader("a") {
-				message.Error = errors.New("Not defined header: a")
-			}
-		})).Catch(func(err error) bool {
-			return err != nil
-		}, processor.Process(func(message *camel.Message) {
-			fmt.Println(">>>>>", message.Error)
+		})).Catch(camel.ErrorAny(), processor.Process(func(exchange *camel.Exchange) {
+			fmt.Println(">>>>>", exchange.Error)
 		})),
 	))
 
-	camelRuntime.RegisterRoute(camel.NewRoute("sum", "direct:sum",
+	camelRuntime.MustRegisterRoute(camel.NewRoute("sum", "direct:sum",
 		processor.Pipeline(
-			processor.SetBody(expr.Func(func(message *camel.Message) (any, error) {
-				return message.MustHeader("a").(int) + message.MustHeader("b").(int), nil
+			processor.SetBody(expr.Func(func(exchange *camel.Exchange) (any, error) {
+				return exchange.Message().MustHeader("a").(int) + exchange.Message().MustHeader("b").(int), nil
 			})),
 			processor.To("direct:print"),
 			processor.Choice().
-				When(expr.MustSimple("payload == 40"), processor.Process(func(message *camel.Message) {
-					message.Body = 444
+				When(expr.MustSimple("body == 40"), processor.Process(func(exchange *camel.Exchange) {
+					exchange.Message().Body = 444
 				})).
 				Otherwise(processor.To("direct:x")),
 		),
 	))
 
-	camelRuntime.RegisterRoute(camel.NewRoute("t", "timer:zzz", processor.Pipeline(
-		processor.Process(func(message *camel.Message) {
-			message.Body = fmt.Sprintf("COUNT: %d", message.Body)
+	camelRuntime.MustRegisterRoute(camel.NewRoute("t", "timer:myTimer?interval=5s", processor.PipelineWithConfig(
+		processor.PipelineConfig{
+			FailFast: false, // keep processing pipeline in case of any error
+		},
+		processor.Process(func(exchange *camel.Exchange) {
+			exchange.Message().Body = fmt.Sprintf("COUNT: %d", exchange.Message().Body)
 		}),
-		processor.To("direct:print"))))
+		processor.To("direct:gg"),
+		processor.Process(func(exchange *camel.Exchange) {
+			if exchange.Error != nil {
+				log.Printf("error: %s", exchange.Error)
+			}
+		}),
+	)))
 
-	camelRuntime.RegisterRoute(camel.NewRoute("print", "direct:print", processor.LogMessage("print-1")))
+	camelRuntime.MustRegisterRoute(camel.NewRoute("print", "direct:print", processor.LogMessage("print-1")))
 
-	camelRuntime.RegisterRoute(camel.NewRoute("print1", "direct:print", processor.LogMessage("print-2")))
+	camelRuntime.MustRegisterRoute(camel.NewRoute("print1", "direct:print", processor.LogMessage("print-2")))
 
-	camelRuntime.RegisterRoute(camel.NewRoute("x", "direct:x", processor.LogMessage("xxx")))
+	camelRuntime.MustRegisterRoute(camel.NewRoute("x", "direct:x", processor.LogMessage("xxx")))
 
-	camelRuntime.Start()
+	err := camelRuntime.Start()
+	if err != nil {
+		panic(err)
+	}
 
-	m, _ := camelRuntime.Send("direct:sum", nil, map[string]any{
-		"a": 1,
-		"b": 39,
-	})
-	fmt.Printf("%+v\n", m.Body)
+	//m, _ := camelRuntime.Send("direct:sum", nil, map[string]any{
+	//	"a": 1,
+	//	"b": 39,
+	//})
+	//fmt.Printf("%+v\n", m.Body)
 
-	camelRuntime.Send("direct:err", nil, nil)
+	//_, _ = camelRuntime.Send("direct:err", nil, nil)
 
 	time.Sleep(1 * time.Minute)
 

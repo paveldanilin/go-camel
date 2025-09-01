@@ -1,11 +1,12 @@
 package processor
 
 import (
+	"fmt"
 	"github.com/paveldanilin/go-camel/camel"
 )
 
 type ToProcessor struct {
-	uri string // TODO: implement uri
+	uri string
 }
 
 func To(uri string) *ToProcessor {
@@ -14,13 +15,23 @@ func To(uri string) *ToProcessor {
 	}
 }
 
-func (p *ToProcessor) Process(message *camel.Message) {
-
-	producer, err := message.Runtime().Endpoint(p.uri).CreateProducer()
-	if err != nil {
-		message.Error = err
+func (p *ToProcessor) Process(exchange *camel.Exchange) {
+	if err := exchange.CheckCancelOrTimeout(); err != nil {
+		exchange.Error = err
 		return
 	}
 
-	producer.Process(message)
+	endpoint := exchange.Runtime().Endpoint(p.uri)
+	if endpoint == nil {
+		exchange.Error = fmt.Errorf("endpoint not found '%s'", p.uri)
+		return
+	}
+
+	producer, err := endpoint.CreateProducer()
+	if err != nil {
+		exchange.Error = err
+		return
+	}
+
+	producer.Process(exchange)
 }

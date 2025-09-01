@@ -12,7 +12,6 @@ type DoTryProcessor struct {
 }
 
 func DoTry(processors ...camel.Processor) *DoTryProcessor {
-
 	return &DoTryProcessor{
 		processors:   processors,
 		catchClauses: []catchClause{},
@@ -25,7 +24,6 @@ type catchClause struct {
 }
 
 func (p *DoTryProcessor) Catch(predicate func(error) bool, handler camel.Processor) *DoTryProcessor {
-
 	p.catchClauses = append(p.catchClauses, catchClause{
 		predicate: predicate,
 		handler:   handler,
@@ -35,20 +33,22 @@ func (p *DoTryProcessor) Catch(predicate func(error) bool, handler camel.Process
 }
 
 func (p *DoTryProcessor) Finally(finally ...camel.Processor) *DoTryProcessor {
-
 	p.finallyProcessors = append(p.finallyProcessors, finally...)
-
 	return p
 }
 
-func (p *DoTryProcessor) Process(message *camel.Message) {
+func (p *DoTryProcessor) Process(exchange *camel.Exchange) {
+	if err := exchange.CheckCancelOrTimeout(); err != nil {
+		exchange.Error = err
+		return
+	}
 
 	var originalErr error
 
 	// Try-block
 	for _, processor := range p.processors {
-		if Invoke(processor, message) || message.IsError() {
-			originalErr = message.Error
+		if InvokeWithRecovery(processor, exchange) || exchange.IsError() {
+			originalErr = exchange.Error
 			break
 		}
 	}
@@ -59,10 +59,10 @@ func (p *DoTryProcessor) Process(message *camel.Message) {
 		for _, c := range p.catchClauses {
 			if c.predicate(originalErr) {
 				// Execute handler
-				Invoke(c.handler, message)
+				InvokeWithRecovery(c.handler, exchange)
 				caught = true
 				// Clear error on success handling (Camel-like style).
-				message.Error = nil
+				exchange.Error = nil
 				// First match only
 				break
 			}
@@ -72,17 +72,17 @@ func (p *DoTryProcessor) Process(message *camel.Message) {
 	// Finally-block
 	if len(p.finallyProcessors) > 0 {
 		for _, p := range p.finallyProcessors {
-			Invoke(p, message)
+			InvokeWithRecovery(p, exchange)
 		}
 
 		// In case of error/panic in finally , combines with originalErr (if any)
-		if message.IsError() && originalErr != nil && !caught {
-			message.Error = fmt.Errorf("original error: %w; finally error: %v", originalErr, message.Error)
+		if exchange.IsError() && originalErr != nil && !caught {
+			exchange.Error = fmt.Errorf("original error: %w; finally error: %v", originalErr, exchange.Error)
 		}
 	}
 
 	// Restore originalErr if catch-block does not catch error
-	if originalErr != nil && !caught && message.Error == nil {
-		message.Error = originalErr
+	if originalErr != nil && !caught && exchange.Error == nil {
+		exchange.Error = originalErr
 	}
 }
