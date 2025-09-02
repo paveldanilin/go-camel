@@ -23,6 +23,7 @@ func (c Component) CreateEndpoint(uri string) (camel.Endpoint, error) {
 	}
 
 	return &Endpoint{
-		uri: parsedUri,
+		uri:  parsedUri,
+		name: parsedUri.Path(),
 	}, nil
 }

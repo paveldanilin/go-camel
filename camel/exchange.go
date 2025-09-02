@@ -7,15 +7,21 @@ import (
 )
 
 type RuntimeProvider interface {
+	ExchangeFactory
+
 	Component(componentId string) Component
 	Endpoint(uri string) Endpoint
 	Route(routeId string) *Route
 }
 
+type ExchangeFactory interface {
+	NewExchange(c context.Context) *Exchange
+}
+
 type Exchange struct {
 	id         string
 	runtime    RuntimeProvider
-	properties Values
+	properties Map
 	start      time.Time
 	message    *Message
 	Error      error
@@ -36,7 +42,7 @@ func NewExchange(c context.Context, r RuntimeProvider) *Exchange {
 		id:         uuid.NewString(),
 		runtime:    r,
 		start:      time.Now(),
-		properties: newValues(),
+		properties: newMap(),
 		message:    NewMessage(),
 		ctx:        ctx,
 		cancel:     cancel,
@@ -100,7 +106,7 @@ func (e *Exchange) Runtime() RuntimeProvider {
 	return e.runtime
 }
 
-func (e *Exchange) Properties() *Values {
+func (e *Exchange) Properties() *Map {
 	return &e.properties
 }
 
@@ -122,4 +128,45 @@ func (e *Exchange) StartedAt() time.Time {
 
 func (e *Exchange) IsError() bool {
 	return e.Error != nil
+}
+
+func (e *Exchange) Copy() *Exchange {
+	if e == nil {
+		return nil
+	}
+
+	var propsCopy Map
+	if e.properties != nil {
+		propsCopy = e.properties.Copy()
+	}
+	var msgCopy *Message
+	if e.message != nil {
+		msgCopy = e.message.Copy()
+	}
+
+	// Inherit parent context
+	var (
+		ctx    context.Context
+		cancel context.CancelFunc
+	)
+	if e.hasDeadline && !e.deadline.IsZero() {
+		// Inherit from parent
+		ctx, cancel = context.WithDeadline(e.ctx, e.deadline)
+	} else {
+		ctx, cancel = context.WithCancel(e.ctx)
+	}
+
+	return &Exchange{
+		id:         uuid.NewString(),
+		runtime:    e.runtime,
+		properties: propsCopy,
+		start:      e.start,
+		message:    msgCopy,
+		Error:      e.Error,
+
+		ctx:         ctx,
+		cancel:      cancel,
+		hasDeadline: e.hasDeadline,
+		deadline:    e.deadline,
+	}
 }

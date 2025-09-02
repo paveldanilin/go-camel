@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/paveldanilin/go-camel/camel"
 	"github.com/paveldanilin/go-camel/camel/component/direct"
@@ -31,7 +32,7 @@ func main() {
 	// Ticks every 5 seconds
 	camelRuntime.MustRegisterRoute(camel.NewRoute("t", "timer:myTimer?interval=5s", processor.PipelineWithConfig(
 		processor.PipelineConfig{
-			FailFast: false, // keep processing pipeline in case of any error
+			StopOnError: false, // keep processing pipeline in case of any error
 		},
 		processor.SetBody(expr.MustSimple("'COUNT: ' + string(headers.CamelTimerCounter)")),
 		processor.LogMessage(">>"),
@@ -44,10 +45,14 @@ func main() {
 	}
 
 	// Calc sum
-	m, _ := camelRuntime.Send("direct:sum", nil, map[string]any{
+	ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+	m, err := camelRuntime.SendHeaders(ctx, "direct:sum", camel.Map{
 		"a": 1,
 		"b": 39,
 	})
+	if err != nil {
+		panic(err)
+	}
 	fmt.Printf("SUM: %+v\n", m.Body)
 
 	time.Sleep(1 * time.Minute)

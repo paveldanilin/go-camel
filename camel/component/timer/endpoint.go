@@ -12,8 +12,8 @@ import (
 const EndpointParamInterval = "interval"
 
 type Endpoint struct {
-	uri       *uri.URI
 	mu        sync.RWMutex
+	uri       *uri.URI
 	component *Component
 	consumer  *Consumer
 
