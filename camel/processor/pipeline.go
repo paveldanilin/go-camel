@@ -4,8 +4,8 @@ import "github.com/paveldanilin/go-camel/camel"
 
 type PipelineConfig struct {
 	// If TRUE - exit from pipeline on first error.
-	// If FALSE - proceed pipeline in case of any error.
-	FailFast bool
+	// If FALSE - proceed pipeline when error occurs.
+	StopOnError bool
 }
 
 type PipelineProcessor struct {
@@ -17,7 +17,7 @@ type PipelineProcessor struct {
 // Exit from pipeline in case of any error.
 func Pipeline(processors ...camel.Processor) *PipelineProcessor {
 	return &PipelineProcessor{
-		config:     PipelineConfig{FailFast: true},
+		config:     PipelineConfig{StopOnError: true},
 		processors: processors,
 	}
 }
@@ -37,7 +37,7 @@ func (p *PipelineProcessor) Process(exchange *camel.Exchange) {
 
 	for _, processor := range p.processors {
 		processor.Process(exchange)
-		if exchange.IsError() && p.config.FailFast {
+		if exchange.IsError() && p.config.StopOnError {
 			break
 		}
 	}

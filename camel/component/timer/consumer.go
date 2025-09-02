@@ -2,7 +2,6 @@ package timer
 
 import (
 	"github.com/paveldanilin/go-camel/camel"
-	"log"
 	"sync"
 	"time"
 )
@@ -37,8 +36,6 @@ func (c *Consumer) Start() error {
 		return nil
 	}
 
-	log.Printf("timer: '%s' with interval '%d'", c.endpoint.name, c.endpoint.interval)
-
 	c.ticker = time.NewTicker(c.endpoint.interval)
 	c.done = make(chan struct{})
 	c.running = true
@@ -53,7 +50,7 @@ func (c *Consumer) Start() error {
 			case t := <-c.ticker.C:
 				count++
 				for _, processor := range c.processors {
-					exchange := camel.NewExchange(nil, c.endpoint.component.runtime)
+					exchange := c.endpoint.component.runtime.NewExchange(nil)
 					exchange.Message().SetHeader(HeaderTimeFiredTime, t)
 					exchange.Message().SetHeader(HeaderTimerName, c.endpoint.name)
 					exchange.Message().SetHeader(HeaderTimerCounter, count)

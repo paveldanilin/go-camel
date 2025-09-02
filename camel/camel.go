@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/paveldanilin/go-camel/camel/uri"
-	"log"
 	"sync"
 )
 
@@ -52,24 +51,40 @@ type RuntimeAware interface {
 }
 
 type Runtime struct {
-	components map[string]Component
-	routes     map[string]*Route
-	endpoints  map[string]Endpoint
-	consumers  []Consumer
-	mu         sync.RWMutex
-	ctx        context.Context
-	cancel     context.CancelFunc
+	mu              sync.RWMutex
+	exchangeFactory ExchangeFactory
+	components      map[string]Component
+	routes          map[string]*Route
+	endpoints       map[string]Endpoint
+	consumers       []Consumer
+	ctx             context.Context
+	cancel          context.CancelFunc
 }
 
-func NewRuntime() *Runtime {
+type RuntimeOption func(*Runtime)
+
+func NewRuntime(options ...RuntimeOption) *Runtime {
 	ctx, cancel := context.WithCancel(context.Background())
-	return &Runtime{
+
+	runtime := &Runtime{
 		components: map[string]Component{},
 		routes:     map[string]*Route{},
 		endpoints:  map[string]Endpoint{},
 		consumers:  []Consumer{},
 		ctx:        ctx,
 		cancel:     cancel,
+	}
+
+	for _, opt := range options {
+		opt(runtime)
+	}
+
+	return runtime
+}
+
+func RuntimeWithExchangeFactory(exchangeFactory ExchangeFactory) RuntimeOption {
+	return func(r *Runtime) {
+		r.exchangeFactory = exchangeFactory
 	}
 }
 
@@ -90,7 +105,7 @@ func (rt *Runtime) RegisterComponent(c Component) error {
 func (rt *Runtime) MustRegisterComponent(c Component) {
 	err := rt.RegisterComponent(c)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("camel: %w", err))
 	}
 }
 
@@ -115,7 +130,7 @@ func (rt *Runtime) RegisterRoute(r *Route) error {
 func (rt *Runtime) MustRegisterRoute(r *Route) {
 	err := rt.RegisterRoute(r)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("camel: %w", err))
 	}
 }
 
@@ -126,23 +141,40 @@ func (rt *Runtime) Endpoint(uri string) Endpoint {
 	return nil
 }
 
-func (rt *Runtime) Send(uri string, body any, headers map[string]any) (*Message, error) {
+func (rt *Runtime) NewExchange(c context.Context) *Exchange {
+	if rt.exchangeFactory == nil {
+		return NewExchange(c, rt)
+	}
+	newExchange := rt.exchangeFactory.NewExchange(c)
+	newExchange.runtime = rt
+	return newExchange
+}
+
+func (rt *Runtime) Send(ctx context.Context, uri string, body any, headers map[string]any) (*Message, error) {
 	if endpoint, exists := rt.endpoints[uri]; exists {
 		producer, err := endpoint.CreateProducer()
 		if err != nil {
 			return nil, err
 		}
 
-		e := NewExchange(nil, rt)
+		e := rt.NewExchange(ctx)
 		e.message.Body = body
 		e.message.headers.SetAll(headers)
 
 		producer.Process(e)
 
-		return e.message, nil
+		return e.message, e.Error
 	}
 
 	return nil, errors.New("endpoint not found for uri: " + uri)
+}
+
+func (rt *Runtime) SendBody(ctx context.Context, uri string, body any) (*Message, error) {
+	return rt.Send(ctx, uri, body, nil)
+}
+
+func (rt *Runtime) SendHeaders(ctx context.Context, uri string, headers map[string]any) (*Message, error) {
+	return rt.Send(ctx, uri, nil, headers)
 }
 
 func (rt *Runtime) Route(routeId string) *Route {
@@ -158,22 +190,17 @@ func (rt *Runtime) Start() error {
 	defer rt.mu.Unlock()
 
 	for _, route := range rt.routes {
-		log.Printf("Registering route: '%s'", route.id)
 
 		fromUri, err := uri.Parse(route.from, nil)
 		if err != nil {
 			return fmt.Errorf("invalid URI format in route '%s' that consumes from [%s]: %w", route.id, route.from, err)
 		}
 
-		log.Printf("Route uri parsed: %s", fromUri)
-
 		// Resolve component
 		component, componentExists := rt.components[fromUri.Component()]
 		if !componentExists {
 			return fmt.Errorf("component '%s' not found in route '%s' that consumes from [%s]", fromUri.Component(), route.id, route.from)
 		}
-
-		log.Printf("Compoentn resolved: %s", fromUri.Component())
 
 		// Resolve/create endpoint
 		endpoint, endpointExists := rt.endpoints[route.from]
@@ -184,8 +211,6 @@ func (rt *Runtime) Start() error {
 			}
 			rt.endpoints[route.from] = endpoint
 		}
-
-		log.Printf("Endpoint created")
 
 		// Create consumer
 		consumer, err := endpoint.CreateConsumer(route.producer)

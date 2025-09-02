@@ -11,6 +11,8 @@ type Endpoint struct {
 	mu       sync.RWMutex
 	consumer *Consumer
 	producer *Producer
+
+	name string
 }
 
 func (e *Endpoint) Uri() *uri.URI {

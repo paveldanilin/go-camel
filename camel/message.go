@@ -1,17 +1,19 @@
 package camel
 
-import "github.com/google/uuid"
+import (
+	"github.com/google/uuid"
+)
 
 type Message struct {
 	id      string
-	headers Values
+	headers Map
 	Body    any
 }
 
 func NewMessage() *Message {
 	return &Message{
 		id:      uuid.NewString(),
-		headers: newValues(),
+		headers: newMap(),
 	}
 }
 
@@ -19,7 +21,7 @@ func (m *Message) Id() string {
 	return m.id
 }
 
-func (m *Message) Headers() *Values {
+func (m *Message) Headers() *Map {
 	return &m.headers
 }
 
@@ -40,5 +42,22 @@ func (m *Message) MustHeader(name string) any {
 	if v, exists := m.headers.Get(name); exists {
 		return v
 	}
-	panic("message header not found: '" + name + "'")
+	panic("camel: message header not found: '" + name + "'")
+}
+
+func (m *Message) Copy() *Message {
+	if m == nil {
+		return nil
+	}
+
+	var headersCopy Map
+	if m.headers != nil {
+		headersCopy = m.headers.Copy()
+	}
+
+	return &Message{
+		id:      uuid.NewString(),
+		headers: headersCopy,
+		Body:    copyValue(m.Body),
+	}
 }
