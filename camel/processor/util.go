@@ -5,7 +5,9 @@ import (
 	"github.com/paveldanilin/go-camel/camel"
 )
 
-// InvokeWithRecovery invokes processor with recovery
+// InvokeWithRecovery invokes processor with panic recovery.
+// Returns TRUE if panic occurs.
+// Returns FALSE if no panic occurs.
 func InvokeWithRecovery(p camel.Processor, exchange *camel.Exchange) (panicked bool) {
 	defer func() {
 		if r := recover(); r != nil {

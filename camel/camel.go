@@ -13,6 +13,16 @@ type Expr interface {
 	Eval(exchange *Exchange) (any, error)
 }
 
+type Predicate interface {
+	Test(exchange *Exchange) (bool, error)
+}
+
+type PredicateFunc func(exchange *Exchange) (bool, error)
+
+func (prd PredicateFunc) Test(exchange *Exchange) (bool, error) {
+	return prd(exchange)
+}
+
 type Processor interface {
 	Process(exchange *Exchange)
 }

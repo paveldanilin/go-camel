@@ -104,10 +104,30 @@ func TestChoiceProcessor(t *testing.T) {
 	}
 }
 
-func TestLoopProcessor(t *testing.T) {
-	loop := processor.Loop(5, nil, processor.LogMessage(">"))
+func TestLoopCountProcessor(t *testing.T) {
+	loop := processor.LoopCount(5,
+		processor.SetBody(expr.MustSimple("exchange.properties.CAMEL_LOOP_INDEX")))
 
 	exchange := camel.NewExchange(nil, nil)
 
 	loop.Process(exchange)
+
+	expectedBody := 4
+	if exchange.Message().Body != expectedBody {
+		t.Errorf("TestLoopCountProcessor() = %v; want body %v", exchange.Message().Body, expectedBody)
+	}
+}
+
+func TestLoopWhileProcessor(t *testing.T) {
+	loop := processor.LoopWhile(expr.MustSimple("exchange.properties.CAMEL_LOOP_INDEX < 10"),
+		processor.SetBody(expr.MustSimple("exchange.properties.CAMEL_LOOP_INDEX")))
+
+	exchange := camel.NewExchange(nil, nil)
+
+	loop.Process(exchange)
+
+	expectedBody := 9
+	if exchange.Message().Body != expectedBody {
+		t.Errorf("TestLoopWhileProcessor() = %v; want body %v", exchange.Message().Body, expectedBody)
+	}
 }
