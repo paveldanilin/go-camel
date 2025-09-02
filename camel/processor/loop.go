@@ -1,75 +1,143 @@
 package processor
 
 import (
+	"fmt"
 	"github.com/paveldanilin/go-camel/camel"
+	"github.com/paveldanilin/go-camel/camel/expr"
 )
 
-type LoopProcessor struct {
-	// count - фиксированное число итераций (если >0).
-	count int
-	// predicate - условие для продолжения цикла (while predicate(m) == true).
-	// Если nil, игнорируется.
-	predicate func(exchange *camel.Exchange) bool
-	// processors - процессоры, выполняемые в каждой итерации.
+type LoopCountProcessor struct {
+	count      int
 	processors []camel.Processor
-	// copy - если true, каждая итерация работает на shallow копии Message.
+	// TRUE - make shallow copy for each iteration
 	copy bool
 }
 
-func Loop(count int, predicate func(exchange *camel.Exchange) bool, processors ...camel.Processor) *LoopProcessor {
+func LoopCount(count int, processors ...camel.Processor) *LoopCountProcessor {
 
-	return &LoopProcessor{
+	return &LoopCountProcessor{
 		count:      count,
-		predicate:  predicate,
 		processors: processors,
 		copy:       true,
 	}
 }
 
-func (p *LoopProcessor) Process(exchange *camel.Exchange) {
+func (p *LoopCountProcessor) Process(exchange *camel.Exchange) {
+	if len(p.processors) == 0 || p.count <= 0 {
+		return // Nothing to iterate
+	}
+
 	if err := exchange.CheckCancelOrTimeout(); err != nil {
 		exchange.Error = err
 		return
 	}
 
-	if len(p.processors) == 0 {
-		return // Нет процессоров - ничего не делаем.
-	}
-
 	iterations := 0
 	for {
-		// Проверяем условия выхода.
-		if p.count > 0 && iterations >= p.count {
-			break
-		}
-		if p.predicate != nil && !p.predicate(exchange) {
+		exchange.SetProperty("CAMEL_LOOP_INDEX", iterations)
+
+		if iterations >= p.count {
 			break
 		}
 
-		// Если copy, создаём shallow копию.
-		var current *camel.Exchange
+		// Make shallow copy
+		var currentExchange *camel.Exchange
 		if p.copy {
-			copy := *exchange // Shallow copy.
-			current = &copy
+			copy := *exchange // Shallow copy
+			currentExchange = &copy
 		} else {
-			current = exchange
+			currentExchange = exchange
 		}
 
-		// Выполняем процессоры в итерации.
+		// LoopCount through processors
 		breakIteration := false
 		for _, processor := range p.processors {
-			if InvokeWithRecovery(processor, exchange) || current.Error != nil {
+			if InvokeWithRecovery(processor, exchange) || currentExchange.Error != nil {
 				breakIteration = true
 				break
 			}
 		}
 
-		// Если copy, копируем изменения обратно (включая Err).
+		// If shallow copy, copy it back
 		if p.copy {
-			*exchange = *current
+			*exchange = *currentExchange
 		}
 
-		// Если ошибка/panic в итерации, прерываем весь цикл.
+		// panic/error breaks loop
+		if breakIteration || exchange.IsError() {
+			break
+		}
+
+		iterations++
+	}
+}
+
+type LoopWhileProcessor struct {
+	predicate  camel.Predicate
+	processors []camel.Processor
+	// TRUE - make shallow copy for each iteration
+	copy bool
+}
+
+func LoopWhile(predicate camel.Expr, processors ...camel.Processor) *LoopWhileProcessor {
+	if predicate == nil {
+		panic(fmt.Errorf("camel: processor: LoopWhile predicate cannot be nil"))
+	}
+	return &LoopWhileProcessor{
+		predicate:  expr.Predicate(predicate),
+		processors: processors,
+		copy:       true,
+	}
+}
+
+func (p *LoopWhileProcessor) Process(exchange *camel.Exchange) {
+	if len(p.processors) == 0 {
+		return // Nothing to iterate
+	}
+
+	if err := exchange.CheckCancelOrTimeout(); err != nil {
+		exchange.Error = err
+		return
+	}
+
+	iterations := 0
+	for {
+		exchange.SetProperty("CAMEL_LOOP_INDEX", iterations)
+
+		// Check while condition
+		predicateResult, err := p.predicate.Test(exchange)
+		if err != nil {
+			exchange.Error = err
+			break
+		}
+		if !predicateResult {
+			break
+		}
+
+		// Make shallow copy
+		var currentExchange *camel.Exchange
+		if p.copy {
+			copy := *exchange // Shallow copy
+			currentExchange = &copy
+		} else {
+			currentExchange = exchange
+		}
+
+		// LoopCount through processors
+		breakIteration := false
+		for _, processor := range p.processors {
+			if InvokeWithRecovery(processor, exchange) || currentExchange.Error != nil {
+				breakIteration = true
+				break
+			}
+		}
+
+		// If shallow copy, copy it back
+		if p.copy {
+			*exchange = *currentExchange
+		}
+
+		// panic/error breaks loop
 		if breakIteration || exchange.IsError() {
 			break
 		}

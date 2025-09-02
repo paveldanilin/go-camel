@@ -1,6 +1,8 @@
 package processor
 
-import "github.com/paveldanilin/go-camel/camel"
+import (
+	"github.com/paveldanilin/go-camel/camel"
+)
 
 // SetBodyProcessor sets a camel.Message body
 type SetBodyProcessor struct {

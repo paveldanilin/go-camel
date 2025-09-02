@@ -2,6 +2,7 @@ package processor
 
 import (
 	"github.com/paveldanilin/go-camel/camel"
+	"github.com/paveldanilin/go-camel/camel/expr"
 )
 
 type ChoiceProcessor struct {
@@ -16,7 +17,7 @@ func Choice() *ChoiceProcessor {
 }
 
 func (p *ChoiceProcessor) When(predicate camel.Expr, processor camel.Processor) *ChoiceProcessor {
-	p.cases = append(p.cases, &choiceWhen{predicate: predicate, processor: processor})
+	p.cases = append(p.cases, &choiceWhen{predicate: expr.Predicate(predicate), processor: processor})
 	return p
 }
 
@@ -34,7 +35,14 @@ func (p *ChoiceProcessor) Process(exchange *camel.Exchange) {
 	whenMatched := false
 
 	for _, whenCase := range p.cases {
-		if whenCase.match(exchange) {
+		caseMatched, err := whenCase.match(exchange)
+		if err != nil {
+			// In case of error stop processing choice
+			exchange.Error = err
+			return
+		}
+
+		if caseMatched {
 			whenMatched = true
 			whenCase.processor.Process(exchange)
 			break
@@ -52,15 +60,10 @@ func (p *ChoiceProcessor) Process(exchange *camel.Exchange) {
 
 // choiceWhen represents a single when check of ChoiceProcessor
 type choiceWhen struct {
-	predicate camel.Expr
+	predicate camel.Predicate
 	processor camel.Processor
 }
 
-func (when *choiceWhen) match(exchange *camel.Exchange) bool {
-	v, err := when.predicate.Eval(exchange)
-	if err != nil {
-		panic(err)
-	}
-
-	return v.(bool)
+func (when *choiceWhen) match(exchange *camel.Exchange) (bool, error) {
+	return when.predicate.Test(exchange)
 }

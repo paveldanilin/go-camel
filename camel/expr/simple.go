@@ -1,6 +1,7 @@
 package expr
 
 import (
+	"fmt"
 	"github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/vm"
 	"github.com/paveldanilin/go-camel/camel"
@@ -29,7 +30,7 @@ func Simple(e string) (*SimpleExpr, error) {
 func MustSimple(e string) *SimpleExpr {
 	simpleExpr, err := Simple(e)
 	if err != nil {
-		panic(err)
+		panic(fmt.Errorf("camel: expr: %w", err))
 	}
 
 	return simpleExpr

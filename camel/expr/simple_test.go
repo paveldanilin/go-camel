@@ -6,7 +6,6 @@ import (
 )
 
 func TestSimpleExpressionEq(t *testing.T) {
-
 	exprEq, err := Simple("header.a == 1")
 	if err != nil {
 		panic(err)

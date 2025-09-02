@@ -108,6 +108,10 @@ func (e *Exchange) Property(name string) (any, bool) {
 	return e.properties.Get(name)
 }
 
+func (e *Exchange) SetProperty(name string, value any) {
+	e.properties.Set(name, value)
+}
+
 func (e *Exchange) Message() *Message {
 	return e.message
 }
