@@ -9,13 +9,14 @@ import (
 )
 
 func TestPipelineProcessor(t *testing.T) {
-	sum := processor.Pipeline(
-		processor.SetHeader("a", expr.Const(1)),
-		processor.SetHeader("b", expr.Const(1)),
-		processor.Process(func(exchange *camel.Exchange) {
+	sum := processor.Pipeline().
+		SetStepName("Sum").
+		AddProc(processor.SetHeader("a", expr.Const(1)).SetStepName("Set 'a' argument")).
+		AddProc(processor.SetHeader("b", expr.Const(1)).SetStepName("Set 'b' argument")).
+		AddProc(processor.Process(func(exchange *camel.Exchange) {
 
-			a, _ := exchange.Message().Headers().Get("a")
-			b, _ := exchange.Message().Headers().Get("b")
+			a, _ := exchange.Message().Header("a")
+			b, _ := exchange.Message().Header("b")
 			exchange.Message().Body = a.(int) + b.(int)
 
 		}))
@@ -45,8 +46,8 @@ func TestSetPayloadProcessor(t *testing.T) {
 	}))
 
 	exchange := camel.NewExchange(nil, nil)
-	exchange.Message().Headers().Set("a", 2)
-	exchange.Message().Headers().Set("b", 3)
+	exchange.Message().SetHeader("a", 2)
+	exchange.Message().SetHeader("b", 3)
 
 	mul.Process(exchange)
 	if exchange.IsError() {
@@ -105,8 +106,9 @@ func TestChoiceProcessor(t *testing.T) {
 }
 
 func TestLoopCountProcessor(t *testing.T) {
-	loop := processor.LoopCount(5,
-		processor.SetBody(expr.MustSimple("exchange.properties.CAMEL_LOOP_INDEX")))
+	loop := processor.LoopCount(5).
+		SetStepName("Loop with 5 iterations").
+		AddProc(processor.SetBody(expr.MustSimple("exchange.properties.CAMEL_LOOP_INDEX")))
 
 	exchange := camel.NewExchange(nil, nil)
 
@@ -119,8 +121,9 @@ func TestLoopCountProcessor(t *testing.T) {
 }
 
 func TestLoopWhileProcessor(t *testing.T) {
-	loop := processor.LoopWhile(expr.MustSimple("exchange.properties.CAMEL_LOOP_INDEX < 10"),
-		processor.SetBody(expr.MustSimple("exchange.properties.CAMEL_LOOP_INDEX")))
+	loop := processor.LoopWhile(expr.MustSimple("exchange.properties.CAMEL_LOOP_INDEX < 10")).
+		SetStepName("Loop with 10 iterations").
+		AddProc(processor.SetBody(expr.MustSimple("exchange.properties.CAMEL_LOOP_INDEX")))
 
 	exchange := camel.NewExchange(nil, nil)
 

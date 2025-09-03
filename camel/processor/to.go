@@ -6,7 +6,9 @@ import (
 )
 
 type ToProcessor struct {
-	uri string
+	// stepName is a logical name of current operation.
+	stepName string
+	uri      string
 }
 
 func To(uri string) *ToProcessor {
@@ -15,7 +17,14 @@ func To(uri string) *ToProcessor {
 	}
 }
 
+func (p *ToProcessor) SetStepName(stepName string) *ToProcessor {
+	p.stepName = stepName
+	return p
+}
+
 func (p *ToProcessor) Process(exchange *camel.Exchange) {
+	exchange.PushStep(p.stepName)
+
 	if err := exchange.CheckCancelOrTimeout(); err != nil {
 		exchange.Error = err
 		return

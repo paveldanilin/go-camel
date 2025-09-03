@@ -1,11 +1,14 @@
 package processor
 
 import (
+	"fmt"
 	"github.com/paveldanilin/go-camel/camel"
 	"github.com/paveldanilin/go-camel/camel/expr"
 )
 
 type ChoiceProcessor struct {
+	// stepName is a logical name of current operation.
+	stepName  string
 	cases     []*choiceWhen
 	otherwise camel.Processor
 }
@@ -16,8 +19,22 @@ func Choice() *ChoiceProcessor {
 	}
 }
 
+func (p *ChoiceProcessor) SetStepName(stepName string) *ChoiceProcessor {
+	p.stepName = stepName
+	return p
+}
+
 func (p *ChoiceProcessor) When(predicate camel.Expr, processor camel.Processor) *ChoiceProcessor {
-	p.cases = append(p.cases, &choiceWhen{predicate: expr.Predicate(predicate), processor: processor})
+	if predicate == nil {
+		panic(fmt.Errorf("camel: choice: when: predicate must be not nil"))
+	}
+	if processor == nil {
+		panic(fmt.Errorf("camel: choice: when: processor must be not nil"))
+	}
+	p.cases = append(p.cases, &choiceWhen{
+		predicate: expr.Predicate(predicate),
+		processor: processor,
+	})
 	return p
 }
 
@@ -27,12 +44,12 @@ func (p *ChoiceProcessor) Otherwise(processor camel.Processor) *ChoiceProcessor 
 }
 
 func (p *ChoiceProcessor) Process(exchange *camel.Exchange) {
+	exchange.PushStep(p.stepName)
+
 	if err := exchange.CheckCancelOrTimeout(); err != nil {
 		exchange.Error = err
 		return
 	}
-
-	whenMatched := false
 
 	for _, whenCase := range p.cases {
 		caseMatched, err := whenCase.match(exchange)
@@ -43,22 +60,18 @@ func (p *ChoiceProcessor) Process(exchange *camel.Exchange) {
 		}
 
 		if caseMatched {
-			whenMatched = true
 			whenCase.processor.Process(exchange)
-			break
+			return
 		}
 	}
 
-	if !whenMatched && p.otherwise != nil {
-		if err := exchange.CheckCancelOrTimeout(); err != nil {
-			exchange.Error = err
-			return
-		}
+	// No one case was found
+	if p.otherwise != nil {
 		p.otherwise.Process(exchange)
 	}
 }
 
-// choiceWhen represents a single when check of ChoiceProcessor
+// choiceWhen represents a single 'when' check of ChoiceProcessor
 type choiceWhen struct {
 	predicate camel.Predicate
 	processor camel.Processor

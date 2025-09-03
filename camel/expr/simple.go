@@ -7,8 +7,9 @@ import (
 	"github.com/paveldanilin/go-camel/camel"
 )
 
+// SimpleExpr is a wrapper for https://expr-lang.org/docs/getting-started
 type SimpleExpr struct {
-	expr    string
+	rawExpr string
 	program *vm.Program
 }
 
@@ -22,7 +23,7 @@ func Simple(e string) (*SimpleExpr, error) {
 	}
 
 	return &SimpleExpr{
-		expr:    e,
+		rawExpr: e,
 		program: program,
 	}, nil
 }
@@ -30,13 +31,14 @@ func Simple(e string) (*SimpleExpr, error) {
 func MustSimple(e string) *SimpleExpr {
 	simpleExpr, err := Simple(e)
 	if err != nil {
-		panic(fmt.Errorf("camel: expr: %w", err))
+		panic(fmt.Errorf("camel: expr: simple: %w", err))
 	}
 
 	return simpleExpr
 }
 
 func (e *SimpleExpr) Eval(exchange *camel.Exchange) (any, error) {
+	// TODO: move to Exchange?
 	env := map[string]any{
 		"body":    exchange.Message().Body,
 		"headers": exchange.Message().Headers().All(),
@@ -48,4 +50,8 @@ func (e *SimpleExpr) Eval(exchange *camel.Exchange) (any, error) {
 	}
 
 	return expr.Run(e.program, env)
+}
+
+func (e *SimpleExpr) String() string {
+	return e.rawExpr
 }

@@ -6,6 +6,8 @@ import (
 )
 
 type DoTryProcessor struct {
+	// stepName is a logical name of current operation.
+	stepName          string
 	processors        []camel.Processor
 	catchClauses      []catchClause
 	finallyProcessors []camel.Processor
@@ -18,9 +20,9 @@ func DoTry(processors ...camel.Processor) *DoTryProcessor {
 	}
 }
 
-type catchClause struct {
-	predicate func(error) bool
-	handler   camel.Processor
+func (p *DoTryProcessor) SetStepName(stepName string) *DoTryProcessor {
+	p.stepName = stepName
+	return p
 }
 
 func (p *DoTryProcessor) Catch(predicate func(error) bool, handler camel.Processor) *DoTryProcessor {
@@ -38,6 +40,8 @@ func (p *DoTryProcessor) Finally(finally ...camel.Processor) *DoTryProcessor {
 }
 
 func (p *DoTryProcessor) Process(exchange *camel.Exchange) {
+	exchange.PushStep(p.stepName)
+
 	if err := exchange.CheckCancelOrTimeout(); err != nil {
 		exchange.Error = err
 		return
@@ -85,4 +89,9 @@ func (p *DoTryProcessor) Process(exchange *camel.Exchange) {
 	if originalErr != nil && !caught && exchange.Error == nil {
 		exchange.Error = originalErr
 	}
+}
+
+type catchClause struct {
+	predicate func(error) bool
+	handler   camel.Processor
 }

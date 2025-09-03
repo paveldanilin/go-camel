@@ -7,6 +7,8 @@ import (
 )
 
 type LoopCountProcessor struct {
+	// stepName is a logical name of current operation.
+	stepName   string
 	count      int
 	processors []camel.Processor
 	// TRUE - make shallow copy for each iteration
@@ -14,7 +16,6 @@ type LoopCountProcessor struct {
 }
 
 func LoopCount(count int, processors ...camel.Processor) *LoopCountProcessor {
-
 	return &LoopCountProcessor{
 		count:      count,
 		processors: processors,
@@ -22,7 +23,19 @@ func LoopCount(count int, processors ...camel.Processor) *LoopCountProcessor {
 	}
 }
 
+func (p *LoopCountProcessor) SetStepName(stepName string) *LoopCountProcessor {
+	p.stepName = stepName
+	return p
+}
+
+func (p *LoopCountProcessor) AddProc(processor camel.Processor) *LoopCountProcessor {
+	p.processors = append(p.processors, processor)
+	return p
+}
+
 func (p *LoopCountProcessor) Process(exchange *camel.Exchange) {
+	exchange.PushStep(p.stepName)
+
 	if len(p.processors) == 0 || p.count <= 0 {
 		return // Nothing to iterate
 	}
@@ -73,6 +86,8 @@ func (p *LoopCountProcessor) Process(exchange *camel.Exchange) {
 }
 
 type LoopWhileProcessor struct {
+	// stepName is a logical name of current operation.
+	stepName   string
 	predicate  camel.Predicate
 	processors []camel.Processor
 	// TRUE - make shallow copy for each iteration
@@ -90,7 +105,19 @@ func LoopWhile(predicate camel.Expr, processors ...camel.Processor) *LoopWhilePr
 	}
 }
 
+func (p *LoopWhileProcessor) SetStepName(stepName string) *LoopWhileProcessor {
+	p.stepName = stepName
+	return p
+}
+
+func (p *LoopWhileProcessor) AddProc(processor camel.Processor) *LoopWhileProcessor {
+	p.processors = append(p.processors, processor)
+	return p
+}
+
 func (p *LoopWhileProcessor) Process(exchange *camel.Exchange) {
+	exchange.PushStep(p.stepName)
+
 	if len(p.processors) == 0 {
 		return // Nothing to iterate
 	}

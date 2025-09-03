@@ -3,6 +3,7 @@ package camel
 import (
 	"context"
 	"github.com/google/uuid"
+	"strings"
 	"time"
 )
 
@@ -30,6 +31,8 @@ type Exchange struct {
 	cancel      context.CancelFunc
 	hasDeadline bool
 	deadline    time.Time
+
+	path []string
 }
 
 func NewExchange(c context.Context, r RuntimeProvider) *Exchange {
@@ -46,6 +49,7 @@ func NewExchange(c context.Context, r RuntimeProvider) *Exchange {
 		message:    NewMessage(),
 		ctx:        ctx,
 		cancel:     cancel,
+		path:       []string{},
 	}
 
 	if dl, ok := c.Deadline(); ok {
@@ -156,6 +160,11 @@ func (e *Exchange) Copy() *Exchange {
 		ctx, cancel = context.WithCancel(e.ctx)
 	}
 
+	newPath := make([]string, len(e.path))
+	for i, v := range e.path {
+		newPath[i] = v
+	}
+
 	return &Exchange{
 		id:         uuid.NewString(),
 		runtime:    e.runtime,
@@ -168,5 +177,19 @@ func (e *Exchange) Copy() *Exchange {
 		cancel:      cancel,
 		hasDeadline: e.hasDeadline,
 		deadline:    e.deadline,
+
+		path: newPath,
 	}
+}
+
+func (e *Exchange) PushStep(stepName string) {
+	stepName = strings.TrimSpace(stepName)
+	if stepName == "" {
+		return
+	}
+	e.path = append(e.path, stepName)
+}
+
+func (e *Exchange) Path() []string {
+	return e.path
 }

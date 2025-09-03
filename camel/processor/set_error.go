@@ -6,7 +6,9 @@ import (
 
 // SetErrorProcessor sets a camel.Exchange error
 type SetErrorProcessor struct {
-	err error
+	// stepName is a logical name of current operation.
+	stepName string
+	err      error
 }
 
 func SetError(err error) *SetErrorProcessor {
@@ -15,7 +17,14 @@ func SetError(err error) *SetErrorProcessor {
 	}
 }
 
+func (p *SetErrorProcessor) SetStepName(stepName string) *SetErrorProcessor {
+	p.stepName = stepName
+	return p
+}
+
 func (p *SetErrorProcessor) Process(exchange *camel.Exchange) {
+	exchange.PushStep(p.stepName)
+
 	if err := exchange.CheckCancelOrTimeout(); err != nil {
 		exchange.Error = err
 		return
