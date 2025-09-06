@@ -3,6 +3,7 @@ package camel
 import (
 	"context"
 	"github.com/google/uuid"
+	"github.com/paveldanilin/go-camel/camel/observer"
 	"strings"
 	"time"
 )
@@ -20,12 +21,15 @@ type ExchangeFactory interface {
 }
 
 type Exchange struct {
-	id         string
-	runtime    RuntimeProvider
+	*observer.Subject
+
+	id      string
+	runtime RuntimeProvider
+	start   time.Time
+
 	properties Map
-	start      time.Time
 	message    *Message
-	Error      error
+	err        error
 
 	ctx         context.Context
 	cancel      context.CancelFunc
@@ -42,6 +46,8 @@ func NewExchange(c context.Context, r RuntimeProvider) *Exchange {
 	ctx, cancel := context.WithCancel(c)
 
 	e := &Exchange{
+		Subject: observer.NewSubject(),
+
 		id:         uuid.NewString(),
 		runtime:    r,
 		start:      time.Now(),
@@ -131,7 +137,25 @@ func (e *Exchange) StartedAt() time.Time {
 }
 
 func (e *Exchange) IsError() bool {
-	return e.Error != nil
+	return e.err != nil
+}
+
+func (e *Exchange) Error() error {
+	return e.err
+}
+
+// SetError sets internal error state and notifies all subscribers.
+func (e *Exchange) SetError(err error) {
+	e.err = err
+
+	if e.err == nil {
+		// Skip notification in case when error is nil.
+		return
+	}
+
+	// Notify all subscribers.
+	// Unsafe notification, will crush in of case panic, so all subscribers must be safe and non-blocking !!!
+	e.Notify(e)
 }
 
 func (e *Exchange) Copy() *Exchange {
@@ -166,12 +190,14 @@ func (e *Exchange) Copy() *Exchange {
 	}
 
 	return &Exchange{
+		Subject: e.Subject,
+
 		id:         uuid.NewString(),
 		runtime:    e.runtime,
 		properties: propsCopy,
 		start:      e.start,
 		message:    msgCopy,
-		Error:      e.Error,
+		err:        e.err,
 
 		ctx:         ctx,
 		cancel:      cancel,
@@ -182,14 +208,32 @@ func (e *Exchange) Copy() *Exchange {
 	}
 }
 
-func (e *Exchange) PushStep(stepName string) {
-	stepName = strings.TrimSpace(stepName)
-	if stepName == "" {
-		return
-	}
-	e.path = append(e.path, stepName)
+func (e *Exchange) pushStep(stepName string) {
+	e.path = append(e.path, strings.TrimSpace(stepName))
 }
 
+// Path returns the stack of steps taken
 func (e *Exchange) Path() []string {
 	return e.path
+}
+
+// On intended to be called at the start of each processor, makes several things:
+//  1. pushes step name in stack of steps
+//  2. checks context cancellation or timeout
+//  3. notifies subscribers
+//
+// Returns TRUE if processor can proceed with handling this exchange, FALSE - otherwise.
+func (e *Exchange) On(stepName string) bool {
+	e.pushStep(stepName)
+
+	if err := e.CheckCancelOrTimeout(); err != nil {
+		e.SetError(err)
+		return false
+	}
+
+	// Notify all subscribers.
+	// Unsafe notification, will crush in case of panic, so all subscribers must be safe and non-blocking !!!
+	e.Notify(e)
+
+	return true
 }

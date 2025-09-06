@@ -10,10 +10,10 @@ import (
 
 func TestPipelineProcessor(t *testing.T) {
 	sum := processor.Pipeline().
-		SetStepName("Sum").
-		AddProc(processor.SetHeader("a", expr.Const(1)).SetStepName("Set 'a' argument")).
-		AddProc(processor.SetHeader("b", expr.Const(1)).SetStepName("Set 'b' argument")).
-		AddProc(processor.Process(func(exchange *camel.Exchange) {
+		WithStepName("Sum").
+		WithProcessor(processor.SetHeader("a", expr.Const(1)).WithStepName("Set 'a' argument")).
+		WithProcessor(processor.SetHeader("b", expr.Const(1)).WithStepName("Set 'b' argument")).
+		WithProcessor(processor.Process(func(exchange *camel.Exchange) {
 
 			a, _ := exchange.Message().Header("a")
 			b, _ := exchange.Message().Header("b")
@@ -107,8 +107,8 @@ func TestChoiceProcessor(t *testing.T) {
 
 func TestLoopCountProcessor(t *testing.T) {
 	loop := processor.LoopCount(5).
-		SetStepName("Loop with 5 iterations").
-		AddProc(processor.SetBody(expr.MustSimple("exchange.properties.CAMEL_LOOP_INDEX")))
+		WithStepName("Loop with 5 iterations").
+		WithProcessor(processor.SetBody(expr.MustSimple("exchange.properties.CAMEL_LOOP_INDEX")))
 
 	exchange := camel.NewExchange(nil, nil)
 
@@ -122,8 +122,8 @@ func TestLoopCountProcessor(t *testing.T) {
 
 func TestLoopWhileProcessor(t *testing.T) {
 	loop := processor.LoopWhile(expr.MustSimple("exchange.properties.CAMEL_LOOP_INDEX < 10")).
-		SetStepName("Loop with 10 iterations").
-		AddProc(processor.SetBody(expr.MustSimple("exchange.properties.CAMEL_LOOP_INDEX")))
+		WithStepName("Loop with 10 iterations").
+		WithProcessor(processor.SetBody(expr.MustSimple("exchange.properties.CAMEL_LOOP_INDEX")))
 
 	exchange := camel.NewExchange(nil, nil)
 

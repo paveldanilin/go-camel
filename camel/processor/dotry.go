@@ -15,12 +15,13 @@ type DoTryProcessor struct {
 
 func DoTry(processors ...camel.Processor) *DoTryProcessor {
 	return &DoTryProcessor{
+		stepName:     "doTry{}",
 		processors:   processors,
 		catchClauses: []catchClause{},
 	}
 }
 
-func (p *DoTryProcessor) SetStepName(stepName string) *DoTryProcessor {
+func (p *DoTryProcessor) WithStepName(stepName string) *DoTryProcessor {
 	p.stepName = stepName
 	return p
 }
@@ -40,10 +41,7 @@ func (p *DoTryProcessor) Finally(finally ...camel.Processor) *DoTryProcessor {
 }
 
 func (p *DoTryProcessor) Process(exchange *camel.Exchange) {
-	exchange.PushStep(p.stepName)
-
-	if err := exchange.CheckCancelOrTimeout(); err != nil {
-		exchange.Error = err
+	if !exchange.On(p.stepName) {
 		return
 	}
 
@@ -52,7 +50,7 @@ func (p *DoTryProcessor) Process(exchange *camel.Exchange) {
 	// Try-block
 	for _, processor := range p.processors {
 		if InvokeWithRecovery(processor, exchange) || exchange.IsError() {
-			originalErr = exchange.Error
+			originalErr = exchange.Error()
 			break
 		}
 	}
@@ -66,7 +64,7 @@ func (p *DoTryProcessor) Process(exchange *camel.Exchange) {
 				InvokeWithRecovery(c.handler, exchange)
 				caught = true
 				// Clear error on success handling (Camel-like style).
-				exchange.Error = nil
+				exchange.SetError(nil)
 				// First match only
 				break
 			}
@@ -81,13 +79,13 @@ func (p *DoTryProcessor) Process(exchange *camel.Exchange) {
 
 		// In case of error/panic in finally , combines with originalErr (if any)
 		if exchange.IsError() && originalErr != nil && !caught {
-			exchange.Error = fmt.Errorf("original error: %w; finally error: %v", originalErr, exchange.Error)
+			exchange.SetError(fmt.Errorf("original error: %w; finally error: %v", originalErr, exchange.Error))
 		}
 	}
 
 	// Restore originalErr if catch-block does not catch error
-	if originalErr != nil && !caught && exchange.Error == nil {
-		exchange.Error = originalErr
+	if originalErr != nil && !caught && exchange.Error() == nil {
+		exchange.SetError(originalErr)
 	}
 }
 

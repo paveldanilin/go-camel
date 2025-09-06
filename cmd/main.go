@@ -31,9 +31,9 @@ func main() {
 
 	// Ticks every 5 seconds
 	camelRuntime.MustRegisterRoute(camel.NewRoute("t", "timer:myTimer?interval=5s", processor.Pipeline().
-		SetStopOnError(false).
-		AddProc(processor.SetBody(expr.MustSimple("'COUNT: ' + string(headers.CamelTimerCounter)"))).
-		AddProc(processor.LogMessage(">>"))))
+		WithStopOnError(false).
+		WithProcessor(processor.SetBody(expr.MustSimple("'COUNT: ' + string(headers.CamelTimerCounter)"))).
+		WithProcessor(processor.LogMessage(">>"))))
 
 	// Start Camel runtime
 	err := camelRuntime.Start()

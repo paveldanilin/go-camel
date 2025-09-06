@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/paveldanilin/go-camel/camel/observer"
 	"github.com/paveldanilin/go-camel/camel/uri"
 	"sync"
 )
@@ -142,31 +143,46 @@ func (rt *Runtime) Endpoint(uri string) Endpoint {
 }
 
 func (rt *Runtime) NewExchange(c context.Context) *Exchange {
+	var newExchange *Exchange
 	if rt.exchangeFactory == nil {
-		return NewExchange(c, rt)
+		newExchange = NewExchange(c, rt)
+	} else {
+		newExchange = rt.exchangeFactory.NewExchange(c)
 	}
-	newExchange := rt.exchangeFactory.NewExchange(c)
+
 	newExchange.runtime = rt
+	newExchange.Subscribe(func(state observer.State) {
+		if ex, isExchange := state.(*Exchange); isExchange {
+			rt.logExchange(ex)
+		}
+	})
+
 	return newExchange
 }
 
+func (rt *Runtime) logExchange(ex *Exchange) {
+	stepName := ex.path[len(ex.path)-1]
+	fmt.Printf("[%s] step=%s\n", ex.id, stepName)
+}
+
 func (rt *Runtime) Send(ctx context.Context, uri string, body any, headers map[string]any) (*Message, error) {
-	if endpoint, exists := rt.endpoints[uri]; exists {
-		producer, err := endpoint.CreateProducer()
-		if err != nil {
-			return nil, err
-		}
-
-		e := rt.NewExchange(ctx)
-		e.message.Body = body
-		e.message.headers.SetAll(headers)
-
-		producer.Process(e)
-
-		return e.message, e.Error
+	endpoint := rt.Endpoint(uri)
+	if endpoint == nil {
+		return nil, errors.New("endpoint not found for uri: " + uri)
 	}
 
-	return nil, errors.New("endpoint not found for uri: " + uri)
+	producer, err := endpoint.CreateProducer()
+	if err != nil {
+		return nil, err
+	}
+
+	ex := rt.NewExchange(ctx)
+	ex.message.Body = body
+	ex.message.headers.SetAll(headers)
+
+	producer.Process(ex)
+
+	return ex.message, ex.Error()
 }
 
 func (rt *Runtime) SendBody(ctx context.Context, uri string, body any) (*Message, error) {

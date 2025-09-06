@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"fmt"
 	"github.com/paveldanilin/go-camel/camel"
 )
 
@@ -13,26 +14,24 @@ type SetBodyProcessor struct {
 
 func SetBody(value camel.Expr) *SetBodyProcessor {
 	return &SetBodyProcessor{
-		value: value,
+		stepName: fmt.Sprintf("setBody{expr=%s}", value),
+		value:    value,
 	}
 }
 
-func (p *SetBodyProcessor) SetStepName(stepName string) *SetBodyProcessor {
+func (p *SetBodyProcessor) WithStepName(stepName string) *SetBodyProcessor {
 	p.stepName = stepName
 	return p
 }
 
 func (p *SetBodyProcessor) Process(exchange *camel.Exchange) {
-	exchange.PushStep(p.stepName)
-
-	if err := exchange.CheckCancelOrTimeout(); err != nil {
-		exchange.Error = err
+	if !exchange.On(p.stepName) {
 		return
 	}
 
 	value, err := p.value.Eval(exchange)
 	if err != nil {
-		exchange.Error = err
+		exchange.SetError(err)
 		return
 	}
 

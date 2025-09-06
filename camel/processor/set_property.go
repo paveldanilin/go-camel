@@ -1,6 +1,9 @@
 package processor
 
-import "github.com/paveldanilin/go-camel/camel"
+import (
+	"fmt"
+	"github.com/paveldanilin/go-camel/camel"
+)
 
 // SetPropertyProcessor sets camel.Exchange property
 type SetPropertyProcessor struct {
@@ -12,27 +15,25 @@ type SetPropertyProcessor struct {
 
 func SetProperty(name string, value camel.Expr) *SetPropertyProcessor {
 	return &SetPropertyProcessor{
-		name:  name,
-		value: value,
+		stepName: fmt.Sprintf("setProperty{name=%s;value=%v}", name, value),
+		name:     name,
+		value:    value,
 	}
 }
 
-func (p *SetPropertyProcessor) SetStepName(stepName string) *SetPropertyProcessor {
+func (p *SetPropertyProcessor) WithStepName(stepName string) *SetPropertyProcessor {
 	p.stepName = stepName
 	return p
 }
 
 func (p *SetPropertyProcessor) Process(exchange *camel.Exchange) {
-	exchange.PushStep(p.stepName)
-
-	if err := exchange.CheckCancelOrTimeout(); err != nil {
-		exchange.Error = err
+	if !exchange.On(p.stepName) {
 		return
 	}
 
 	value, err := p.value.Eval(exchange)
 	if err != nil {
-		exchange.Error = err
+		exchange.SetError(err)
 		return
 	}
 

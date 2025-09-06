@@ -15,31 +15,29 @@ type PipelineProcessor struct {
 // Exit from pipeline in case of any error.
 func Pipeline(processors ...camel.Processor) *PipelineProcessor {
 	return &PipelineProcessor{
+		stepName:    "pipeline{}",
 		stopOnError: true,
 		processors:  processors,
 	}
 }
 
-func (p *PipelineProcessor) SetStepName(stepName string) *PipelineProcessor {
+func (p *PipelineProcessor) WithStepName(stepName string) *PipelineProcessor {
 	p.stepName = stepName
 	return p
 }
 
-func (p *PipelineProcessor) SetStopOnError(stopOnError bool) *PipelineProcessor {
+func (p *PipelineProcessor) WithStopOnError(stopOnError bool) *PipelineProcessor {
 	p.stopOnError = stopOnError
 	return p
 }
 
-func (p *PipelineProcessor) AddProc(processor camel.Processor) *PipelineProcessor {
+func (p *PipelineProcessor) WithProcessor(processor camel.Processor) *PipelineProcessor {
 	p.processors = append(p.processors, processor)
 	return p
 }
 
 func (p *PipelineProcessor) Process(exchange *camel.Exchange) {
-	exchange.PushStep(p.stepName)
-
-	if err := exchange.CheckCancelOrTimeout(); err != nil {
-		exchange.Error = err
+	if !exchange.On(p.stepName) {
 		return
 	}
 

@@ -15,11 +15,12 @@ type ChoiceProcessor struct {
 
 func Choice() *ChoiceProcessor {
 	return &ChoiceProcessor{
-		cases: []*choiceWhen{},
+		stepName: "choice{}",
+		cases:    []*choiceWhen{},
 	}
 }
 
-func (p *ChoiceProcessor) SetStepName(stepName string) *ChoiceProcessor {
+func (p *ChoiceProcessor) WithStepName(stepName string) *ChoiceProcessor {
 	p.stepName = stepName
 	return p
 }
@@ -44,10 +45,7 @@ func (p *ChoiceProcessor) Otherwise(processor camel.Processor) *ChoiceProcessor 
 }
 
 func (p *ChoiceProcessor) Process(exchange *camel.Exchange) {
-	exchange.PushStep(p.stepName)
-
-	if err := exchange.CheckCancelOrTimeout(); err != nil {
-		exchange.Error = err
+	if !exchange.On(p.stepName) {
 		return
 	}
 
@@ -55,7 +53,7 @@ func (p *ChoiceProcessor) Process(exchange *camel.Exchange) {
 		caseMatched, err := whenCase.match(exchange)
 		if err != nil {
 			// In case of error stop processing choice
-			exchange.Error = err
+			exchange.SetError(err)
 			return
 		}
 

@@ -1,6 +1,7 @@
 package processor
 
 import (
+	"fmt"
 	"github.com/paveldanilin/go-camel/camel"
 )
 
@@ -13,22 +14,20 @@ type SetErrorProcessor struct {
 
 func SetError(err error) *SetErrorProcessor {
 	return &SetErrorProcessor{
-		err: err,
+		stepName: fmt.Sprintf("setError{err=%v}", err),
+		err:      err,
 	}
 }
 
-func (p *SetErrorProcessor) SetStepName(stepName string) *SetErrorProcessor {
+func (p *SetErrorProcessor) WithStepName(stepName string) *SetErrorProcessor {
 	p.stepName = stepName
 	return p
 }
 
 func (p *SetErrorProcessor) Process(exchange *camel.Exchange) {
-	exchange.PushStep(p.stepName)
-
-	if err := exchange.CheckCancelOrTimeout(); err != nil {
-		exchange.Error = err
+	if !exchange.On(p.stepName) {
 		return
 	}
 
-	exchange.Error = p.err
+	exchange.SetError(p.err)
 }
