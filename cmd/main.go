@@ -30,13 +30,10 @@ func main() {
 	))
 
 	// Ticks every 5 seconds
-	camelRuntime.MustRegisterRoute(camel.NewRoute("t", "timer:myTimer?interval=5s", processor.PipelineWithConfig(
-		processor.PipelineConfig{
-			StopOnError: false, // keep processing pipeline in case of any error
-		},
-		processor.SetBody(expr.MustSimple("'COUNT: ' + string(headers.CamelTimerCounter)")),
-		processor.LogMessage(">>"),
-	)))
+	camelRuntime.MustRegisterRoute(camel.NewRoute("t", "timer:myTimer?interval=5s", processor.Pipeline().
+		WithStopOnError(false).
+		WithProcessor(processor.SetBody(expr.MustSimple("'COUNT: ' + string(headers.CamelTimerCounter)"))).
+		WithProcessor(processor.LogMessage(">>"))))
 
 	// Start Camel runtime
 	err := camelRuntime.Start()

@@ -6,30 +6,37 @@ import (
 )
 
 type ToProcessor struct {
-	uri string
+	// stepName is a logical name of current operation.
+	stepName string
+	uri      string
 }
 
 func To(uri string) *ToProcessor {
 	return &ToProcessor{
-		uri: uri,
+		stepName: fmt.Sprintf("to{uri=%s}", uri),
+		uri:      uri,
 	}
 }
 
+func (p *ToProcessor) WithStepName(stepName string) *ToProcessor {
+	p.stepName = stepName
+	return p
+}
+
 func (p *ToProcessor) Process(exchange *camel.Exchange) {
-	if err := exchange.CheckCancelOrTimeout(); err != nil {
-		exchange.Error = err
+	if !exchange.On(p.stepName) {
 		return
 	}
 
 	endpoint := exchange.Runtime().Endpoint(p.uri)
 	if endpoint == nil {
-		exchange.Error = fmt.Errorf("endpoint not found '%s'", p.uri)
+		exchange.SetError(fmt.Errorf("endpoint not found '%s'", p.uri))
 		return
 	}
 
 	producer, err := endpoint.CreateProducer()
 	if err != nil {
-		exchange.Error = err
+		exchange.SetError(err)
 		return
 	}
 

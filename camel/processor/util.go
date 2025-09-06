@@ -11,7 +11,7 @@ import (
 func InvokeWithRecovery(p camel.Processor, exchange *camel.Exchange) (panicked bool) {
 	defer func() {
 		if r := recover(); r != nil {
-			exchange.Error = fmt.Errorf("panic recovered: %v", r)
+			exchange.SetError(fmt.Errorf("panic recovered: %v", r))
 			panicked = true
 		}
 	}()
