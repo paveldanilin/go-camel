@@ -1,18 +1,18 @@
-package expr
+package camel
 
 import (
 	"fmt"
 	"github.com/expr-lang/expr"
 	"github.com/expr-lang/expr/vm"
-	"github.com/paveldanilin/go-camel/camel"
 )
 
-type SimpleExpr struct {
-	expr    string
+// simpleExpr is a wrapper for https://expr-lang.org/docs/getting-started
+type simpleExpr struct {
+	rawExpr string
 	program *vm.Program
 }
 
-func Simple(e string) (*SimpleExpr, error) {
+func newSimpleExpr(e string) (*simpleExpr, error) {
 	program, err := expr.Compile(e,
 		expr.AllowUndefinedVariables(),
 		expr.Optimize(true),
@@ -21,22 +21,23 @@ func Simple(e string) (*SimpleExpr, error) {
 		return nil, err
 	}
 
-	return &SimpleExpr{
-		expr:    e,
+	return &simpleExpr{
+		rawExpr: e,
 		program: program,
 	}, nil
 }
 
-func MustSimple(e string) *SimpleExpr {
-	simpleExpr, err := Simple(e)
+func mustSimpleExpr(e string) *simpleExpr {
+	simpleExpr, err := newSimpleExpr(e)
 	if err != nil {
-		panic(fmt.Errorf("camel: expr: %w", err))
+		panic(fmt.Errorf("camel: expr: simple: %w", err))
 	}
 
 	return simpleExpr
 }
 
-func (e *SimpleExpr) Eval(exchange *camel.Exchange) (any, error) {
+func (e *simpleExpr) Eval(exchange *Exchange) (any, error) {
+	// TODO: move to Exchange?
 	env := map[string]any{
 		"body":    exchange.Message().Body,
 		"headers": exchange.Message().Headers().All(),
@@ -48,4 +49,8 @@ func (e *SimpleExpr) Eval(exchange *camel.Exchange) (any, error) {
 	}
 
 	return expr.Run(e.program, env)
+}
+
+func (e *simpleExpr) String() string {
+	return e.rawExpr
 }
