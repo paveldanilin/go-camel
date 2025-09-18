@@ -1,32 +1,31 @@
-package processor
+package camel
 
 import (
 	"fmt"
-	"github.com/paveldanilin/go-camel/camel"
 )
 
-// SetPropertyProcessor sets camel.Exchange property
-type SetPropertyProcessor struct {
+// setPropertyProcessor sets camel.Exchange property
+type setPropertyProcessor struct {
 	// stepName is a logical name of current operation.
 	stepName string
 	name     string
-	value    camel.Expr
+	value    Expr
 }
 
-func SetProperty(name string, value camel.Expr) *SetPropertyProcessor {
-	return &SetPropertyProcessor{
+func newSetPropertyProcessor(name string, value Expr) *setPropertyProcessor {
+	return &setPropertyProcessor{
 		stepName: fmt.Sprintf("setProperty{name=%s;value=%v}", name, value),
 		name:     name,
 		value:    value,
 	}
 }
 
-func (p *SetPropertyProcessor) WithStepName(stepName string) *SetPropertyProcessor {
+func (p *setPropertyProcessor) WithStepName(stepName string) *setPropertyProcessor {
 	p.stepName = stepName
 	return p
 }
 
-func (p *SetPropertyProcessor) Process(exchange *camel.Exchange) {
+func (p *setPropertyProcessor) Process(exchange *Exchange) {
 	if !exchange.On(p.stepName) {
 		return
 	}

@@ -1,32 +1,36 @@
-package processor
+package camel
 
 import (
 	"fmt"
-	"github.com/paveldanilin/go-camel/camel"
 )
 
-type DoTryProcessor struct {
-	// stepName is a logical name of current operation.
-	stepName          string
-	processors        []camel.Processor
-	catchClauses      []catchClause
-	finallyProcessors []camel.Processor
+type catchClause struct {
+	predicate func(error) bool
+	handler   Processor
 }
 
-func DoTry(processors ...camel.Processor) *DoTryProcessor {
-	return &DoTryProcessor{
+type doTryProcessor struct {
+	// stepName is a logical name of current operation.
+	stepName          string
+	processors        []Processor
+	catchClauses      []catchClause
+	finallyProcessors []Processor
+}
+
+func newDoTryProcessor(processors ...Processor) *doTryProcessor {
+	return &doTryProcessor{
 		stepName:     "doTry{}",
 		processors:   processors,
 		catchClauses: []catchClause{},
 	}
 }
 
-func (p *DoTryProcessor) WithStepName(stepName string) *DoTryProcessor {
+func (p *doTryProcessor) WithStepName(stepName string) *doTryProcessor {
 	p.stepName = stepName
 	return p
 }
 
-func (p *DoTryProcessor) Catch(predicate func(error) bool, handler camel.Processor) *DoTryProcessor {
+func (p *doTryProcessor) Catch(predicate func(error) bool, handler Processor) *doTryProcessor {
 	p.catchClauses = append(p.catchClauses, catchClause{
 		predicate: predicate,
 		handler:   handler,
@@ -35,12 +39,12 @@ func (p *DoTryProcessor) Catch(predicate func(error) bool, handler camel.Process
 	return p
 }
 
-func (p *DoTryProcessor) Finally(finally ...camel.Processor) *DoTryProcessor {
+func (p *doTryProcessor) Finally(finally ...Processor) *doTryProcessor {
 	p.finallyProcessors = append(p.finallyProcessors, finally...)
 	return p
 }
 
-func (p *DoTryProcessor) Process(exchange *camel.Exchange) {
+func (p *doTryProcessor) Process(exchange *Exchange) {
 	if !exchange.On(p.stepName) {
 		return
 	}
@@ -49,7 +53,7 @@ func (p *DoTryProcessor) Process(exchange *camel.Exchange) {
 
 	// Try-block
 	for _, processor := range p.processors {
-		if InvokeWithRecovery(processor, exchange) || exchange.IsError() {
+		if invokeWithRecovery(processor, exchange) || exchange.IsError() {
 			originalErr = exchange.Error()
 			break
 		}
@@ -61,7 +65,7 @@ func (p *DoTryProcessor) Process(exchange *camel.Exchange) {
 		for _, c := range p.catchClauses {
 			if c.predicate(originalErr) {
 				// Execute handler
-				InvokeWithRecovery(c.handler, exchange)
+				invokeWithRecovery(c.handler, exchange)
 				caught = true
 				// Clear error on success handling (Camel-like style).
 				exchange.SetError(nil)
@@ -74,12 +78,12 @@ func (p *DoTryProcessor) Process(exchange *camel.Exchange) {
 	// Finally-block
 	if len(p.finallyProcessors) > 0 {
 		for _, p := range p.finallyProcessors {
-			InvokeWithRecovery(p, exchange)
+			invokeWithRecovery(p, exchange)
 		}
 
 		// In case of error/panic in finally , combines with originalErr (if any)
 		if exchange.IsError() && originalErr != nil && !caught {
-			exchange.SetError(fmt.Errorf("original error: %w; finally error: %v", originalErr, exchange.Error))
+			exchange.SetError(fmt.Errorf("original error: %w; finally error: %v", originalErr, exchange.Error()))
 		}
 	}
 
@@ -87,9 +91,4 @@ func (p *DoTryProcessor) Process(exchange *camel.Exchange) {
 	if originalErr != nil && !caught && exchange.Error() == nil {
 		exchange.SetError(originalErr)
 	}
-}
-
-type catchClause struct {
-	predicate func(error) bool
-	handler   camel.Processor
 }

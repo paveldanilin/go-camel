@@ -1,11 +1,12 @@
-package uri
+package test
 
 import (
+	uri2 "github.com/paveldanilin/go-camel/camel/uri"
 	"testing"
 )
 
 func TestParseCamelStyle(t *testing.T) {
-	uri, err := Parse("timer:foo?period=1000", nil)
+	uri, err := uri2.Parse("timer:foo?period=1000", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +28,7 @@ func TestParseCamelStyle(t *testing.T) {
 }
 
 func TestParseCamelStyleMultiParams(t *testing.T) {
-	uri, err := Parse("kafka:topicA?brokers=localhost:9092&acks=all", nil)
+	uri, err := uri2.Parse("kafka:topicA?brokers=localhost:9092&acks=all", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +50,7 @@ func TestParseCamelStyleMultiParams(t *testing.T) {
 }
 
 func TestParseCamelStyleFile(t *testing.T) {
-	uri, err := Parse("file:/var/log?recursive=true", nil)
+	uri, err := uri2.Parse("file:/var/log?recursive=true", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +72,7 @@ func TestParseCamelStyleFile(t *testing.T) {
 }
 
 func TestParseRegularURL(t *testing.T) {
-	uri, err := Parse("http://john:smith@222.111.222.111:8080/a/b?x=1#frag", nil)
+	uri, err := uri2.Parse("http://john:smith@222.111.222.111:8080/a/b?x=1#frag", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

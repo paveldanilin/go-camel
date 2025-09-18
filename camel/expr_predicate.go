@@ -1,13 +1,12 @@
-package expr
+package camel
 
 import (
 	"fmt"
-	"github.com/paveldanilin/go-camel/camel"
 	"strconv"
 )
 
-func Predicate(expr camel.Expr) camel.PredicateFunc {
-	return func(exchange *camel.Exchange) (bool, error) {
+func newPredicateExpr(expr Expr) PredicateFunc {
+	return func(exchange *Exchange) (bool, error) {
 		v, err := expr.Eval(exchange)
 		if err != nil {
 			return false, err

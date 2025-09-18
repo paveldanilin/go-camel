@@ -1,17 +1,16 @@
-package expr
+package camel
 
 import (
-	"github.com/paveldanilin/go-camel/camel"
 	"testing"
 )
 
 func TestSimpleExpressionEq(t *testing.T) {
-	exprEq, err := Simple("header.a == 1")
+	exprEq, err := newSimpleExpr("header.a == 1")
 	if err != nil {
 		panic(err)
 	}
 
-	m := camel.NewExchange(nil, nil)
+	m := NewExchange(nil, nil)
 	m.Message().SetHeader("a", 1)
 
 	ret, err := exprEq.Eval(m)

@@ -3,7 +3,6 @@ package camel
 import (
 	"context"
 	"github.com/google/uuid"
-	"github.com/paveldanilin/go-camel/camel/observer"
 	"strings"
 	"time"
 )
@@ -13,7 +12,7 @@ type RuntimeProvider interface {
 
 	Component(componentId string) Component
 	Endpoint(uri string) Endpoint
-	Route(routeId string) *Route
+	Route(routeId string) *route
 }
 
 type ExchangeFactory interface {
@@ -21,8 +20,6 @@ type ExchangeFactory interface {
 }
 
 type Exchange struct {
-	*observer.Subject
-
 	id      string
 	runtime RuntimeProvider
 	start   time.Time
@@ -36,6 +33,7 @@ type Exchange struct {
 	hasDeadline bool
 	deadline    time.Time
 
+	// TODO: move to property MessageHistory
 	path []string
 }
 
@@ -46,8 +44,6 @@ func NewExchange(c context.Context, r RuntimeProvider) *Exchange {
 	ctx, cancel := context.WithCancel(c)
 
 	e := &Exchange{
-		Subject: observer.NewSubject(),
-
 		id:         uuid.NewString(),
 		runtime:    r,
 		start:      time.Now(),
@@ -144,18 +140,8 @@ func (e *Exchange) Error() error {
 	return e.err
 }
 
-// SetError sets internal error state and notifies all subscribers.
 func (e *Exchange) SetError(err error) {
 	e.err = err
-
-	if e.err == nil {
-		// Skip notification in case when error is nil.
-		return
-	}
-
-	// Notify all subscribers.
-	// Unsafe notification, will crush in of case panic, so all subscribers must be safe and non-blocking !!!
-	e.Notify(e)
 }
 
 func (e *Exchange) Copy() *Exchange {
@@ -190,8 +176,6 @@ func (e *Exchange) Copy() *Exchange {
 	}
 
 	return &Exchange{
-		Subject: e.Subject,
-
 		id:         uuid.NewString(),
 		runtime:    e.runtime,
 		properties: propsCopy,
@@ -230,10 +214,6 @@ func (e *Exchange) On(stepName string) bool {
 		e.SetError(err)
 		return false
 	}
-
-	// Notify all subscribers.
-	// Unsafe notification, will crush in case of panic, so all subscribers must be safe and non-blocking !!!
-	e.Notify(e)
 
 	return true
 }

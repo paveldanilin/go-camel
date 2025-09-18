@@ -1,29 +1,28 @@
-package processor
+package camel
 
 import (
 	"fmt"
-	"github.com/paveldanilin/go-camel/camel"
 )
 
-type ToProcessor struct {
+type toProcessor struct {
 	// stepName is a logical name of current operation.
 	stepName string
 	uri      string
 }
 
-func To(uri string) *ToProcessor {
-	return &ToProcessor{
+func newToProcessor(uri string) *toProcessor {
+	return &toProcessor{
 		stepName: fmt.Sprintf("to{uri=%s}", uri),
 		uri:      uri,
 	}
 }
 
-func (p *ToProcessor) WithStepName(stepName string) *ToProcessor {
+func (p *toProcessor) WithStepName(stepName string) *toProcessor {
 	p.stepName = stepName
 	return p
 }
 
-func (p *ToProcessor) Process(exchange *camel.Exchange) {
+func (p *toProcessor) Process(exchange *Exchange) {
 	if !exchange.On(p.stepName) {
 		return
 	}

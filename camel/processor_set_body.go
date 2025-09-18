@@ -1,30 +1,29 @@
-package processor
+package camel
 
 import (
 	"fmt"
-	"github.com/paveldanilin/go-camel/camel"
 )
 
-// SetBodyProcessor sets a camel.Message body
-type SetBodyProcessor struct {
+// setBodyProcessor sets a camel.Message body
+type setBodyProcessor struct {
 	// stepName is a logical name of current operation.
 	stepName string
-	value    camel.Expr
+	value    Expr
 }
 
-func SetBody(value camel.Expr) *SetBodyProcessor {
-	return &SetBodyProcessor{
+func newSetBodyProcessor(value Expr) *setBodyProcessor {
+	return &setBodyProcessor{
 		stepName: fmt.Sprintf("setBody{expr=%s}", value),
 		value:    value,
 	}
 }
 
-func (p *SetBodyProcessor) WithStepName(stepName string) *SetBodyProcessor {
+func (p *setBodyProcessor) WithStepName(stepName string) *setBodyProcessor {
 	p.stepName = stepName
 	return p
 }
 
-func (p *SetBodyProcessor) Process(exchange *camel.Exchange) {
+func (p *setBodyProcessor) Process(exchange *Exchange) {
 	if !exchange.On(p.stepName) {
 		return
 	}

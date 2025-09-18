@@ -6,8 +6,7 @@ import (
 	"github.com/paveldanilin/go-camel/camel"
 	"github.com/paveldanilin/go-camel/camel/component/direct"
 	"github.com/paveldanilin/go-camel/camel/component/timer"
-	"github.com/paveldanilin/go-camel/camel/expr"
-	"github.com/paveldanilin/go-camel/camel/processor"
+	"github.com/paveldanilin/go-camel/camel/dsl"
 	"time"
 )
 
@@ -17,26 +16,28 @@ func main() {
 	camelRuntime.MustRegisterComponent(direct.NewComponent())
 	camelRuntime.MustRegisterComponent(timer.NewComponent())
 
-	camelRuntime.MustRegisterRoute(camel.NewRoute("err", "direct:err",
-		processor.DoTry(processor.Process(func(exchange *camel.Exchange) {
-			panic("zZZZ")
-		})).Catch(camel.ErrorAny(), processor.Process(func(exchange *camel.Exchange) {
-			fmt.Println(">>>>>", exchange.Error)
-		})),
-	))
+	r, err := camel.NewRoute("sum", "direct:sum").
+		SetBody("calc sum", camel.Simple("headers.a + headers.b")).
+		Build()
+	if err != nil {
+		panic(err)
+	}
 
-	camelRuntime.MustRegisterRoute(camel.NewRoute("sum", "direct:sum",
-		processor.SetBody(expr.MustSimple("headers.a + headers.b")),
-	))
+	camelRuntime.MustRegisterRoute(r)
 
 	// Ticks every 5 seconds
-	camelRuntime.MustRegisterRoute(camel.NewRoute("t", "timer:myTimer?interval=5s", processor.Pipeline().
-		WithStopOnError(false).
-		WithProcessor(processor.SetBody(expr.MustSimple("'COUNT: ' + string(headers.CamelTimerCounter)"))).
-		WithProcessor(processor.LogMessage(">>"))))
+	r, err = camel.NewRoute("ticker", "timer:myTimer?interval=5s").
+		Pipeline("on tick", func(b *dsl.RouteBuilder) {
+			b.SetBody("set count", camel.Simple("'COUNT: ' + string(headers.CamelTimerCounter)"))
+		}).
+		Build()
+	if err != nil {
+		panic(err)
+	}
+	camelRuntime.MustRegisterRoute(r)
 
 	// Start Camel runtime
-	err := camelRuntime.Start()
+	err = camelRuntime.Start()
 	if err != nil {
 		panic(err)
 	}

@@ -1,23 +1,22 @@
-package processor
+package camel
 
 import (
 	"fmt"
-	"github.com/paveldanilin/go-camel/camel"
 )
 
-type LogProcessor struct {
+type logProcessor struct {
 	stepName string
 	prefix   string
 }
 
-func LogMessage(prefix string) *LogProcessor {
-	return &LogProcessor{
+func newLogProcessor(prefix string) *logProcessor {
+	return &logProcessor{
 		stepName: fmt.Sprintf("log{prefix:%s}", prefix),
 		prefix:   prefix,
 	}
 }
 
-func (p *LogProcessor) Process(exchange *camel.Exchange) {
+func (p *logProcessor) Process(exchange *Exchange) {
 	if !exchange.On(p.stepName) {
 		return
 	}

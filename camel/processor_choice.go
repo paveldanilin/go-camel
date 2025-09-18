@@ -1,31 +1,29 @@
-package processor
+package camel
 
 import (
 	"fmt"
-	"github.com/paveldanilin/go-camel/camel"
-	"github.com/paveldanilin/go-camel/camel/expr"
 )
 
-type ChoiceProcessor struct {
+type choiceProcessor struct {
 	// stepName is a logical name of current operation.
 	stepName  string
 	cases     []*choiceWhen
-	otherwise camel.Processor
+	otherwise Processor
 }
 
-func Choice() *ChoiceProcessor {
-	return &ChoiceProcessor{
+func newChoiceProcessor() *choiceProcessor {
+	return &choiceProcessor{
 		stepName: "choice{}",
 		cases:    []*choiceWhen{},
 	}
 }
 
-func (p *ChoiceProcessor) WithStepName(stepName string) *ChoiceProcessor {
+func (p *choiceProcessor) WithStepName(stepName string) *choiceProcessor {
 	p.stepName = stepName
 	return p
 }
 
-func (p *ChoiceProcessor) When(predicate camel.Expr, processor camel.Processor) *ChoiceProcessor {
+func (p *choiceProcessor) When(predicate Expr, processor Processor) *choiceProcessor {
 	if predicate == nil {
 		panic(fmt.Errorf("camel: choice: when: predicate must be not nil"))
 	}
@@ -33,18 +31,18 @@ func (p *ChoiceProcessor) When(predicate camel.Expr, processor camel.Processor) 
 		panic(fmt.Errorf("camel: choice: when: processor must be not nil"))
 	}
 	p.cases = append(p.cases, &choiceWhen{
-		predicate: expr.Predicate(predicate),
+		predicate: newPredicateExpr(predicate),
 		processor: processor,
 	})
 	return p
 }
 
-func (p *ChoiceProcessor) Otherwise(processor camel.Processor) *ChoiceProcessor {
+func (p *choiceProcessor) Otherwise(processor Processor) *choiceProcessor {
 	p.otherwise = processor
 	return p
 }
 
-func (p *ChoiceProcessor) Process(exchange *camel.Exchange) {
+func (p *choiceProcessor) Process(exchange *Exchange) {
 	if !exchange.On(p.stepName) {
 		return
 	}
@@ -69,12 +67,12 @@ func (p *ChoiceProcessor) Process(exchange *camel.Exchange) {
 	}
 }
 
-// choiceWhen represents a single 'when' check of ChoiceProcessor
+// choiceWhen represents a single 'when' check of choiceProcessor
 type choiceWhen struct {
-	predicate camel.Predicate
-	processor camel.Processor
+	predicate Predicate
+	processor Processor
 }
 
-func (when *choiceWhen) match(exchange *camel.Exchange) (bool, error) {
+func (when *choiceWhen) match(exchange *Exchange) (bool, error) {
 	return when.predicate.Test(exchange)
 }
