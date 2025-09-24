@@ -3,7 +3,6 @@ package camel
 import (
 	"context"
 	"github.com/google/uuid"
-	"strings"
 	"time"
 )
 
@@ -17,6 +16,14 @@ type RuntimeProvider interface {
 
 type ExchangeFactory interface {
 	NewExchange(c context.Context) *Exchange
+}
+
+type MessageHistory interface {
+	ElapsedTime() int64 // milliseconds
+	Time() time.Time
+	RouteName() string
+	StepName() string
+	Message() *Message // copy of message , will be nil if tackMessageCopy=true
 }
 
 type Exchange struct {
@@ -33,8 +40,7 @@ type Exchange struct {
 	hasDeadline bool
 	deadline    time.Time
 
-	// TODO: move to property MessageHistory
-	path []string
+	messageHistory []MessageHistory
 }
 
 func NewExchange(c context.Context, r RuntimeProvider) *Exchange {
@@ -44,14 +50,14 @@ func NewExchange(c context.Context, r RuntimeProvider) *Exchange {
 	ctx, cancel := context.WithCancel(c)
 
 	e := &Exchange{
-		id:         uuid.NewString(),
-		runtime:    r,
-		start:      time.Now(),
-		properties: newMap(),
-		message:    NewMessage(),
-		ctx:        ctx,
-		cancel:     cancel,
-		path:       []string{},
+		id:             uuid.NewString(),
+		runtime:        r,
+		start:          time.Now(),
+		properties:     newMap(),
+		message:        NewMessage(),
+		ctx:            ctx,
+		cancel:         cancel,
+		messageHistory: []MessageHistory{},
 	}
 
 	if dl, ok := c.Deadline(); ok {
@@ -170,11 +176,6 @@ func (e *Exchange) Copy() *Exchange {
 		ctx, cancel = context.WithCancel(e.ctx)
 	}
 
-	newPath := make([]string, len(e.path))
-	for i, v := range e.path {
-		newPath[i] = v
-	}
-
 	return &Exchange{
 		id:         uuid.NewString(),
 		runtime:    e.runtime,
@@ -187,33 +188,21 @@ func (e *Exchange) Copy() *Exchange {
 		cancel:      cancel,
 		hasDeadline: e.hasDeadline,
 		deadline:    e.deadline,
-
-		path: newPath,
 	}
 }
 
-func (e *Exchange) pushStep(stepName string) {
-	e.path = append(e.path, strings.TrimSpace(stepName))
+func (e *Exchange) pushMessageHistory(mh MessageHistory) {
+	e.messageHistory = append(e.messageHistory, mh)
 }
 
-// Path returns the stack of steps taken
-func (e *Exchange) Path() []string {
-	return e.path
+func (e *Exchange) MessageHistory() []MessageHistory {
+	return e.messageHistory
 }
 
-// On intended to be called at the start of each processor, makes several things:
-//  1. pushes step name in stack of steps
-//  2. checks context cancellation or timeout
-//  3. notifies subscribers
-//
-// Returns TRUE if processor can proceed with handling this exchange, FALSE - otherwise.
-func (e *Exchange) On(stepName string) bool {
-	e.pushStep(stepName)
-
-	if err := e.CheckCancelOrTimeout(); err != nil {
-		e.SetError(err)
-		return false
+func (e *Exchange) MessagePath() []string {
+	path := make([]string, len(e.messageHistory))
+	for i, mh := range e.messageHistory {
+		path[i] = mh.StepName()
 	}
-
-	return true
+	return path
 }

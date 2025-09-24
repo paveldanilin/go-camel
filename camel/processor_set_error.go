@@ -1,32 +1,22 @@
 package camel
 
-import (
-	"fmt"
-)
-
 // setErrorProcessor sets a camel.Exchange error
 type setErrorProcessor struct {
-	// stepName is a logical name of current operation.
-	stepName string
-	err      error
+	id  string
+	err error
 }
 
-func newSetErrorProcessor(err error) *setErrorProcessor {
+func newSetErrorProcessor(id string, err error) *setErrorProcessor {
 	return &setErrorProcessor{
-		stepName: fmt.Sprintf("setError{err=%v}", err),
-		err:      err,
+		id:  id,
+		err: err,
 	}
 }
 
-func (p *setErrorProcessor) WithStepName(stepName string) *setErrorProcessor {
-	p.stepName = stepName
-	return p
+func (p *setErrorProcessor) getId() string {
+	return p.id
 }
 
 func (p *setErrorProcessor) Process(exchange *Exchange) {
-	if !exchange.On(p.stepName) {
-		return
-	}
-
 	exchange.SetError(p.err)
 }

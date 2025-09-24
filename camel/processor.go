@@ -1,14 +1,17 @@
 package camel
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
-// invokeWithRecovery invokes processor with panic recovery.
+// invokeProcessor invokes processor with a panic recovery.
 // Returns TRUE if panic occurs.
 // Returns FALSE if no panic occurs.
-func invokeWithRecovery(p Processor, exchange *Exchange) (panicked bool) {
+func invokeProcessor(p Processor, exchange *Exchange) (panicked bool) {
 	defer func() {
 		if r := recover(); r != nil {
-			exchange.SetError(fmt.Errorf("panic recovered: %v", r))
+			exchange.SetError(fmt.Errorf("%v", r))
 			panicked = true
 		}
 	}()
@@ -17,22 +20,71 @@ func invokeWithRecovery(p Processor, exchange *Exchange) (panicked bool) {
 	return false
 }
 
-// processor represents a wrapper for any processor with pre/post processing functions.
-type processor struct {
-	Processor         Processor
-	preProcessorFunc  func(*Exchange)
-	postProcessorFunc func(*Exchange)
+type identifiable interface {
+	getId() string
 }
 
-func newProcessor(p Processor, preProcessorFunc func(*Exchange), postProcessorFunc func(*Exchange)) *processor {
+type messageHistory struct {
+	time        time.Time
+	elapsedTime int64
+	routeName   string
+	stepName    string
+}
+
+func (mh *messageHistory) ElapsedTime() int64 {
+	return mh.elapsedTime
+}
+
+func (mh *messageHistory) Time() time.Time {
+	return mh.time
+}
+
+func (mh *messageHistory) RouteName() string {
+	return ""
+}
+
+func (mh *messageHistory) StepName() string {
+	return mh.stepName
+}
+
+func (mh *messageHistory) Message() *Message {
+	return nil
+}
+
+// processor represents a decorator for any processor with pre/post processing functions.
+type processor struct {
+	decoratedProcessor Processor
+	preProcessorFunc   func(*Exchange)
+	postProcessorFunc  func(*Exchange)
+}
+
+func decorateProcessor(p Processor, preProcessorFunc func(*Exchange), postProcessorFunc func(*Exchange)) *processor {
 	return &processor{
-		Processor:         p,
-		preProcessorFunc:  preProcessorFunc,
-		postProcessorFunc: postProcessorFunc,
+		decoratedProcessor: p,
+		preProcessorFunc:   preProcessorFunc,
+		postProcessorFunc:  postProcessorFunc,
 	}
 }
 
-func (p processor) Process(exchange *Exchange) {
+func (p *processor) Process(exchange *Exchange) {
+	start := time.Now()
+	stepName := ""
+	if idd, isIdd := p.decoratedProcessor.(identifiable); isIdd {
+		stepName = idd.getId()
+	}
+
+	mh := &messageHistory{
+		time:        start,
+		elapsedTime: -1,
+		routeName:   "",
+		stepName:    stepName,
+	}
+	exchange.pushMessageHistory(mh)
+
+	defer func() {
+		mh.elapsedTime = time.Since(mh.time).Milliseconds()
+	}()
+
 	if p.postProcessorFunc != nil {
 		defer func() {
 			p.postProcessorFunc(exchange)
@@ -43,5 +95,5 @@ func (p processor) Process(exchange *Exchange) {
 		p.preProcessorFunc(exchange)
 	}
 
-	p.Processor.Process(exchange)
+	p.decoratedProcessor.Process(exchange)
 }

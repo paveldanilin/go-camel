@@ -1,0 +1,33 @@
+package camel
+
+import (
+	"errors"
+	"testing"
+)
+
+func TestDoTryProcessor_Error(t *testing.T) {
+	var mandatoryParameterMissingErr = errors.New("mandatory parameter missing")
+
+	tryBlock := newTryProcessor("critical section").
+		addProcessor(newSetHeaderProcessor("set a", "a", newConstExpr(1))).
+		addProcessor(newSetHeaderProcessor("set b", "b", newConstExpr(1))).
+		addProcessor(newSetBodyProcessor("set body", mustSimpleExpr("header.a + header.b"))).
+		addProcessor(newChoiceProcessor("test body").
+			addWhen(mustSimpleExpr("body == 2"), newSetErrorProcessor("", mandatoryParameterMissingErr)),
+		).
+		addCatch(errorContains("mandatory parameter missing"), newSetHeaderProcessor("", "ERROR", mustSimpleExpr("exchange.error"))).
+		addFinally(newSetBodyProcessor("", newConstExpr("RESULT")))
+
+	exchange := NewExchange(nil, nil)
+
+	tryBlock.Process(exchange)
+
+	if !errors.Is(exchange.Message().MustHeader("ERROR").(error), mandatoryParameterMissingErr) {
+		t.Errorf("TestDoTryProcessor_Error() = %v; want %v", exchange.Error(), mandatoryParameterMissingErr)
+	}
+
+	expected := "RESULT"
+	if exchange.Message().Body != expected {
+		t.Errorf("TestDoTryProcessor_Error() = %v; want %s", exchange.Message().Body, expected)
+	}
+}
