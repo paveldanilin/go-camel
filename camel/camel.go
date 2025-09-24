@@ -177,10 +177,12 @@ func (rt *Runtime) NewExchange(c context.Context) *Exchange {
 
 func (rt *Runtime) preProcessor(exchange *Exchange) {
 	//slog.Info("[pre]", "exchange", slog.AnyValue(exchange))
+	// TODO: add event firing
 }
 
 func (rt *Runtime) postProcessor(exchange *Exchange) {
 	//slog.Info("[post]", "exchange", slog.AnyValue(exchange))
+	// TODO: add event firing
 
 }
 
