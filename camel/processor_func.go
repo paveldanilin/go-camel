@@ -1,11 +1,21 @@
 package camel
 
-type funcProcessor func(exchange *Exchange)
+type funcProcessor struct {
+	id       string
+	userFunc func(*Exchange)
+}
 
-func (p funcProcessor) Process(exchange *Exchange) {
-	if !exchange.On("func{}") {
-		return
+func newFuncProcessor(id string, userFunc func(*Exchange)) *funcProcessor {
+	return &funcProcessor{
+		id:       id,
+		userFunc: userFunc,
 	}
+}
 
-	p(exchange)
+func (p *funcProcessor) getId() string {
+	return p.id
+}
+
+func (p *funcProcessor) Process(exchange *Exchange) {
+	p.userFunc(exchange)
 }

@@ -5,28 +5,23 @@ import (
 )
 
 type toProcessor struct {
-	// stepName is a logical name of current operation.
-	stepName string
-	uri      string
+	id string
+
+	uri string
 }
 
-func newToProcessor(uri string) *toProcessor {
+func newToProcessor(id, uri string) *toProcessor {
 	return &toProcessor{
-		stepName: fmt.Sprintf("to{uri=%s}", uri),
-		uri:      uri,
+		id:  id,
+		uri: uri,
 	}
 }
 
-func (p *toProcessor) WithStepName(stepName string) *toProcessor {
-	p.stepName = stepName
-	return p
+func (p *toProcessor) getId() string {
+	return p.id
 }
 
 func (p *toProcessor) Process(exchange *Exchange) {
-	if !exchange.On(p.stepName) {
-		return
-	}
-
 	endpoint := exchange.Runtime().Endpoint(p.uri)
 	if endpoint == nil {
 		exchange.SetError(fmt.Errorf("endpoint not found '%s'", p.uri))

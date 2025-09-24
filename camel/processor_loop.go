@@ -5,38 +5,28 @@ import (
 )
 
 type loopCountProcessor struct {
-	// stepName is a logical name of current operation.
-	stepName   string
+	id string
+
 	count      int
 	processors []Processor
-	// TRUE - make shallow copy for each iteration
-	copy bool
+	copy       bool // TRUE - make shallow copy for each iteration
 }
 
-func newLoopCountProcessor(count int, processors ...Processor) *loopCountProcessor {
+func newLoopCountProcessor(id string, count int) *loopCountProcessor {
 	return &loopCountProcessor{
-		stepName:   fmt.Sprintf("loop{count:%d}", count),
+		id:         id,
 		count:      count,
-		processors: processors,
+		processors: []Processor{},
 		copy:       true,
 	}
 }
 
-func (p *loopCountProcessor) WithStepName(stepName string) *loopCountProcessor {
-	p.stepName = stepName
-	return p
-}
-
-func (p *loopCountProcessor) WithProcessor(processor Processor) *loopCountProcessor {
+func (p *loopCountProcessor) addProcessor(processor Processor) *loopCountProcessor {
 	p.processors = append(p.processors, processor)
 	return p
 }
 
 func (p *loopCountProcessor) Process(exchange *Exchange) {
-	if !exchange.On(p.stepName) {
-		return
-	}
-
 	if len(p.processors) == 0 || p.count <= 0 {
 		return // Nothing to iterate
 	}
@@ -61,7 +51,7 @@ func (p *loopCountProcessor) Process(exchange *Exchange) {
 		// LoopCount through processors
 		breakIteration := false
 		for _, processor := range p.processors {
-			if invokeWithRecovery(processor, exchange) || currentExchange.Error() != nil {
+			if invokeProcessor(processor, exchange) || currentExchange.Error() != nil {
 				breakIteration = true
 				break
 			}
@@ -82,41 +72,31 @@ func (p *loopCountProcessor) Process(exchange *Exchange) {
 }
 
 type loopWhileProcessor struct {
-	// stepName is a logical name of current operation.
-	stepName   string
+	id string
+
 	predicate  Predicate
 	processors []Processor
-	// TRUE - make shallow copy for each iteration
-	copy bool
+	copy       bool // TRUE - make shallow copy for each iteration
 }
 
-func newLoopWhileProcessor(predicate Expr, processors ...Processor) *loopWhileProcessor {
+func newLoopWhileProcessor(id string, predicate Expr) *loopWhileProcessor {
 	if predicate == nil {
 		panic(fmt.Errorf("camel: processor: LoopWhile predicate cannot be nil"))
 	}
 	return &loopWhileProcessor{
-		stepName:   fmt.Sprintf("loop{}"),
-		predicate:  newPredicateExpr(predicate),
-		processors: processors,
+		id:         id,
+		predicate:  newPredicateFromExpr(predicate),
+		processors: []Processor{},
 		copy:       true,
 	}
 }
 
-func (p *loopWhileProcessor) WithStepName(stepName string) *loopWhileProcessor {
-	p.stepName = stepName
-	return p
-}
-
-func (p *loopWhileProcessor) WithProcessor(processor Processor) *loopWhileProcessor {
+func (p *loopWhileProcessor) addProcessor(processor Processor) *loopWhileProcessor {
 	p.processors = append(p.processors, processor)
 	return p
 }
 
 func (p *loopWhileProcessor) Process(exchange *Exchange) {
-	if !exchange.On(p.stepName) {
-		return
-	}
-
 	if len(p.processors) == 0 {
 		return // Nothing to iterate
 	}
@@ -147,7 +127,7 @@ func (p *loopWhileProcessor) Process(exchange *Exchange) {
 		// LoopCount through processors
 		breakIteration := false
 		for _, processor := range p.processors {
-			if invokeWithRecovery(processor, exchange) || currentExchange.Error() != nil {
+			if invokeProcessor(processor, exchange) || currentExchange.Error() != nil {
 				breakIteration = true
 				break
 			}

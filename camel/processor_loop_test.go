@@ -5,9 +5,8 @@ import (
 )
 
 func TestLoopCountProcessor(t *testing.T) {
-	loop := newLoopCountProcessor(5).
-		WithStepName("Loop with 5 iterations").
-		WithProcessor(newSetBodyProcessor(mustSimpleExpr("exchange.properties.CAMEL_LOOP_INDEX")))
+	loop := newLoopCountProcessor("Loop with 5 iterations", 5).
+		addProcessor(newSetBodyProcessor("set body", mustSimpleExpr("exchange.properties.CAMEL_LOOP_INDEX")))
 
 	exchange := NewExchange(nil, nil)
 
@@ -20,9 +19,8 @@ func TestLoopCountProcessor(t *testing.T) {
 }
 
 func TestLoopWhileProcessor(t *testing.T) {
-	loop := newLoopWhileProcessor(mustSimpleExpr("exchange.properties.CAMEL_LOOP_INDEX < 10")).
-		WithStepName("Loop with 10 iterations").
-		WithProcessor(newSetBodyProcessor(mustSimpleExpr("exchange.properties.CAMEL_LOOP_INDEX")))
+	loop := newLoopWhileProcessor("Loop with 10 iterations", mustSimpleExpr("exchange.properties.CAMEL_LOOP_INDEX < 10")).
+		addProcessor(newSetBodyProcessor("set body", mustSimpleExpr("exchange.properties.CAMEL_LOOP_INDEX")))
 
 	exchange := NewExchange(nil, nil)
 

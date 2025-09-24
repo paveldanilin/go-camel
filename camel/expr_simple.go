@@ -42,8 +42,9 @@ func (e *simpleExpr) Eval(exchange *Exchange) (any, error) {
 		"body":    exchange.Message().Body,
 		"headers": exchange.Message().Headers().All(),
 		"header":  exchange.Message().Headers().All(),
+		"error":   exchange.Error(),
 		"exchange": map[string]any{
-			"error":      exchange.Error,
+			"error":      exchange.Error(),
 			"properties": exchange.Properties().All(),
 		},
 	}

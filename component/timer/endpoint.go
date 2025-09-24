@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/paveldanilin/go-camel/camel"
-	"github.com/paveldanilin/go-camel/camel/uri"
+	"github.com/paveldanilin/go-camel/uri"
 	"sync"
 	"time"
 )

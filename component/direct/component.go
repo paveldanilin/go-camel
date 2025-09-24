@@ -2,7 +2,7 @@ package direct
 
 import (
 	"github.com/paveldanilin/go-camel/camel"
-	u "github.com/paveldanilin/go-camel/camel/uri"
+	u "github.com/paveldanilin/go-camel/uri"
 )
 
 type Component struct {
