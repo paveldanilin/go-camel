@@ -3,78 +3,63 @@ package camel
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
 )
 
-type JsonProcessor struct {
-	json      string
+type jsonProcessor struct {
+	json      []byte
 	model     any
-	operation string
+	operation JSON_OPERATION
 }
+type JSON_OPERATION int
 
-func newJsonProcessor(j JsonProcessor) *JsonProcessor {
-	return &JsonProcessor{
-		json:      j.json,
-		model:     j.model,
-		operation: j.operation,
+const (
+	Marshal JSON_OPERATION = iota
+	Unmarshal
+)
+
+func newJsonProcessor(operation JSON_OPERATION, model any, json []byte) jsonProcessor {
+	return jsonProcessor{
+		json:      json,
+		model:     model,
+		operation: operation,
 	}
 }
 
-// type jsonString struct {
-// 	value string
-// 	model any
-// }
+func unmarshal(jsonData []byte, t reflect.Type) (any, error) {
+	newValuePtr := reflect.New(t)
+	target := newValuePtr.Interface()
 
-// type jsonBits struct {
-// 	value []byte
-// 	model any
-// }
-
-// type JsonOperation interface {
-// 	marshal() string
-// 	unmarshal() any
-// }
-
-func (j *JsonProcessor) unmarshal() {
-	if err := json.Unmarshal([]byte(j.json), &j.model); err != nil {
-		fmt.Println("error:", err)
+	if err := json.Unmarshal(jsonData, target); err != nil {
+		return nil, fmt.Errorf("desearilization error json: %w", err)
 	}
+
+	return newValuePtr.Elem().Interface(), nil
 }
 
-// func (j *jsonBits) unmarshal() {
-// 	fmt.Println(2)
-// 	if err := json.Unmarshal(j.value, &j.model); err != nil {
-// 		fmt.Println("error:", err)
-// 	}
-// }
+func marshal(model any) (string, error) {
+	data, err := json.Marshal(model)
+	var json string
 
-func (j *JsonProcessor) marshal() {
-	data, err := json.Marshal(&j.model)
 	if err != nil {
-		fmt.Println("json error:", err)
+		return "", fmt.Errorf("searilization error json: %w", err)
 	} else {
-		j.json = string(data)
-		// fmt.Println("string(res)", data, string(data))
+		json = string(data)
 	}
+
+	return json, nil
 }
 
-func (j *JsonProcessor) handleMarshal() {
-	fmt.Println("MARSHAL OPERATION")
-	j.marshal()
-}
-
-func (j *JsonProcessor) handleUnnmarshal() {
-	fmt.Println("UNMARSHAL OPERATION")
-	j.unmarshal()
-}
-
-func (j *JsonProcessor) Process(exchange *Exchange) {
+func (j jsonProcessor) Process(exchange *Exchange) {
 	switch j.operation {
-	case "marshal":
-		j.handleMarshal()
-		exchange.Message().Body = j.json
-	case "unmarshal":
-		j.handleUnnmarshal()
-		exchange.Message().Body = j.model
+	case Marshal:
+		json, err := marshal(j.model)
+		exchange.Message().Body = json
+		exchange.err = err
+	case Unmarshal:
+		model, err := unmarshal([]byte(j.json), reflect.TypeOf(j.model))
+		exchange.Message().Body = model
+		exchange.err = err
 	default:
 		fmt.Println("operation should be marshal or unmarshal")
 	}

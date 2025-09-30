@@ -1,6 +1,7 @@
 package camel
 
 import (
+	"reflect"
 	"testing"
 )
 
@@ -10,10 +11,10 @@ type jsonModel struct {
 }
 
 func TestJsonProcessorMarshal(t *testing.T) {
-	j := JsonProcessor{model: jsonModel{Page: 2, Fruits: []string{"orange", "abricot"}}, operation: "marshal"}
-	jsonProcMarshal := newJsonProcessor(j)
-	exchange := NewExchange(nil, nil)
 	expectedBody := `{"Page":2,"Fruits":["orange","abricot"]}`
+	model := jsonModel{Page: 2, Fruits: []string{"orange", "abricot"}}
+	jsonProcMarshal := newJsonProcessor(Marshal, model, []byte{})
+	exchange := NewExchange(nil, nil)
 
 	jsonProcMarshal.Process(exchange)
 
@@ -22,23 +23,15 @@ func TestJsonProcessorMarshal(t *testing.T) {
 	}
 }
 
-// func TestJsonProcessorUnmarshal(t *testing.T) {
-// 	// var body map[string]interface{}
-// 	j := JsonProcessor{json: `{"Page": 1, "Fruits": ["apple", "peach"]}`, model: make(map[string]*jsonModel), operation: "unmarshal"}
-// 	jsonProcUnmarshal := newJsonProcessor(j)
-// 	exchange := NewExchange(nil, nil)
-// 	// expectedBody := map[Fruits:[apple peach] Page:1]
+func TestJsonProcessorUnmarshal(t *testing.T) {
+	expectedBody := reflect.TypeOf(jsonModel{})
+	json := `{"Page": 1, "Fruits": ["apple", "peach"]}`
+	jsonProcUnmarshal := newJsonProcessor(Unmarshal, jsonModel{}, []byte(json))
+	exchange := NewExchange(nil, nil)
 
-// 	jsonProcUnmarshal.Process(exchange)
+	jsonProcUnmarshal.Process(exchange)
 
-// 	// b, ok := exchange.Message().Body.(map[string]interface{})
-// 	// if ok {
-// 	// 	body = b
-// 	// }
-
-// 	// t.Log(body, expectedBody)
-
-// 	// if body["page"] != expectedBody {
-// 	// 	t.Errorf("TestJsonProcessorUnmarshal() = %v; want body %v", body["page"], expectedBody)
-// 	// }
-// }
+	if reflect.TypeOf(exchange.Message().Body) != expectedBody {
+		t.Errorf("TestJsonProcessorUnmarshal() = %v; want body %v", exchange.Message().Body, expectedBody)
+	}
+}
