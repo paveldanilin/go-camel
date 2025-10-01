@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-func newPredicateExpr(expr Expr) PredicateFunc {
+func newPredicateFromExpr(expr Expr) PredicateFunc {
 	return func(exchange *Exchange) (bool, error) {
 		v, err := expr.Eval(exchange)
 		if err != nil {

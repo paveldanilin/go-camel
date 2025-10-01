@@ -4,9 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/paveldanilin/go-camel/camel/dsl"
-	"github.com/paveldanilin/go-camel/camel/uri"
-	"log/slog"
+	"github.com/paveldanilin/go-camel/dsl"
+	"github.com/paveldanilin/go-camel/uri"
 	"sync"
 )
 
@@ -60,6 +59,7 @@ type route struct {
 
 type Runtime struct {
 	mu              sync.RWMutex
+	funcRegistry    FuncRegistry
 	exchangeFactory ExchangeFactory
 	components      map[string]Component
 	routes          map[string]*route
@@ -75,12 +75,13 @@ func NewRuntime(options ...RuntimeOption) *Runtime {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	runtime := &Runtime{
-		components: map[string]Component{},
-		routes:     map[string]*route{},
-		endpoints:  map[string]Endpoint{},
-		consumers:  []Consumer{},
-		ctx:        ctx,
-		cancel:     cancel,
+		components:   map[string]Component{},
+		routes:       map[string]*route{},
+		endpoints:    map[string]Endpoint{},
+		consumers:    []Consumer{},
+		funcRegistry: newFuncRegistry(),
+		ctx:          ctx,
+		cancel:       cancel,
 	}
 
 	for _, opt := range options {
@@ -96,13 +97,17 @@ func RuntimeWithExchangeFactory(exchangeFactory ExchangeFactory) RuntimeOption {
 	}
 }
 
+func (rt *Runtime) RegisterFunc(name string, fn func(*Exchange)) error {
+	return rt.funcRegistry.RegisterFunc(name, fn)
+}
+
 func (rt *Runtime) RegisterComponent(c Component) error {
 	if _, exists := rt.components[c.Id()]; exists {
 		return errors.New("component already registered: " + c.Id())
 	}
 
-	if contextAware, isContextAware := c.(RuntimeAware); isContextAware {
-		contextAware.SetRuntime(rt)
+	if runtimeAware, isRuntimeAware := c.(RuntimeAware); isRuntimeAware {
+		runtimeAware.SetRuntime(rt)
 	}
 
 	rt.components[c.Id()] = c
@@ -131,6 +136,7 @@ func (rt *Runtime) RegisterRoute(r *dsl.Route) error {
 	}
 
 	rtRoute, err := compileRoute(r, compilerConfig{
+		funcRegistry:      rt.funcRegistry,
 		preProcessorFunc:  rt.preProcessor,
 		postProcessorFunc: rt.postProcessor,
 	})
@@ -166,19 +172,21 @@ func (rt *Runtime) NewExchange(c context.Context) *Exchange {
 	}
 
 	newExchange.runtime = rt
-
 	return newExchange
 }
 
 func (rt *Runtime) preProcessor(exchange *Exchange) {
-	slog.Info("[pre]", "exchange", slog.AnyValue(exchange))
+	//slog.Info("[pre]", "exchange", slog.AnyValue(exchange))
+	// TODO: add event firing
 }
 
 func (rt *Runtime) postProcessor(exchange *Exchange) {
-	slog.Info("[post]", "exchange", slog.AnyValue(exchange))
+	//slog.Info("[post]", "exchange", slog.AnyValue(exchange))
+	// TODO: add event firing
+
 }
 
-func (rt *Runtime) Send(ctx context.Context, uri string, body any, headers map[string]any) (*Message, error) {
+func (rt *Runtime) Send(ctx context.Context, uri string, body any, headers map[string]any) (*Exchange, error) {
 	endpoint := rt.Endpoint(uri)
 	if endpoint == nil {
 		return nil, errors.New("endpoint not found for uri: " + uri)
@@ -189,21 +197,36 @@ func (rt *Runtime) Send(ctx context.Context, uri string, body any, headers map[s
 		return nil, err
 	}
 
-	ex := rt.NewExchange(ctx)
-	ex.message.Body = body
-	ex.message.headers.SetAll(headers)
+	exchange := rt.NewExchange(ctx)
+	//exchange.SetProperty("CAMEL_ROUTE_NAME", "")
+	exchange.message.Body = body
+	exchange.message.headers.SetAll(headers)
 
-	producer.Process(ex)
+	producer.Process(exchange)
 
-	return ex.message, ex.Error()
+	return exchange, exchange.Error()
 }
 
 func (rt *Runtime) SendBody(ctx context.Context, uri string, body any) (*Message, error) {
-	return rt.Send(ctx, uri, body, nil)
+	exchange, err := rt.Send(ctx, uri, body, nil)
+	if err != nil {
+		return nil, err
+	}
+	if exchange.err != nil {
+		return nil, exchange.err
+	}
+	return exchange.message, nil
 }
 
 func (rt *Runtime) SendHeaders(ctx context.Context, uri string, headers map[string]any) (*Message, error) {
-	return rt.Send(ctx, uri, nil, headers)
+	exchange, err := rt.Send(ctx, uri, nil, headers)
+	if err != nil {
+		return nil, err
+	}
+	if exchange.err != nil {
+		return nil, exchange.err
+	}
+	return exchange.message, nil
 }
 
 func (rt *Runtime) Route(routeId string) *route {
@@ -222,13 +245,13 @@ func (rt *Runtime) Start() error {
 
 		fromUri, err := uri.Parse(route.from, nil)
 		if err != nil {
-			return fmt.Errorf("invalid URI format in dsl '%s' that consumes from [%s]: %w", route.name, route.from, err)
+			return fmt.Errorf("invalid URI format in route '%s' that consumes from '%s': %w", route.name, route.from, err)
 		}
 
 		// Resolve component
 		component, componentExists := rt.components[fromUri.Component()]
 		if !componentExists {
-			return fmt.Errorf("component '%s' not found in dsl '%s' that consumes from [%s]", fromUri.Component(), route.name, route.from)
+			return fmt.Errorf("component '%s' not found in route '%s' that consumes from '%s'", fromUri.Component(), route.name, route.from)
 		}
 
 		// Resolve/create endpoint
@@ -236,7 +259,7 @@ func (rt *Runtime) Start() error {
 		if !endpointExists {
 			endpoint, err = component.CreateEndpoint(route.from)
 			if err != nil {
-				return fmt.Errorf("failed to create endpoint in dsl '%s' that consumes from [%s]: %w", route.name, route.from, err)
+				return fmt.Errorf("failed to create endpoint in route '%s' that consumes from '%s': %w", route.name, route.from, err)
 			}
 			rt.endpoints[route.from] = endpoint
 		}
@@ -244,7 +267,7 @@ func (rt *Runtime) Start() error {
 		// Create consumer
 		consumer, err := endpoint.CreateConsumer(route.producer)
 		if err != nil {
-			return fmt.Errorf("failed to create consumer in dsl '%s' that consumes from [%s]: %w", route.name, route.from, err)
+			return fmt.Errorf("failed to create consumer in route '%s' that consumes from '%s': %w", route.name, route.from, err)
 		}
 		rt.consumers = append(rt.consumers, consumer)
 	}

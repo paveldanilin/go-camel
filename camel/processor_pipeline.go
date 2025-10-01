@@ -1,8 +1,8 @@
 package camel
 
 type pipelineProcessor struct {
-	// stepName is a logical name of current operation.
-	stepName string
+	id string
+
 	// If TRUE - exit from pipeline on first error.
 	// If FALSE - proceed pipeline when error occurs, thus let process error in the next processor.
 	stopOnError bool
@@ -11,34 +11,24 @@ type pipelineProcessor struct {
 
 // Pipeline creates a new pipeline of processors.
 // Exit from pipeline in case of any error.
-func newPipelineProcessor(processors ...Processor) *pipelineProcessor {
+func newPipelineProcessor(id string, stopOnError bool) *pipelineProcessor {
 	return &pipelineProcessor{
-		stepName:    "pipeline{}",
-		stopOnError: true,
-		processors:  processors,
+		id:          id,
+		stopOnError: stopOnError,
+		processors:  []Processor{},
 	}
 }
 
-func (p *pipelineProcessor) WithStepName(stepName string) *pipelineProcessor {
-	p.stepName = stepName
-	return p
+func (p *pipelineProcessor) getId() string {
+	return p.id
 }
 
-func (p *pipelineProcessor) WithStopOnError(stopOnError bool) *pipelineProcessor {
-	p.stopOnError = stopOnError
-	return p
-}
-
-func (p *pipelineProcessor) WithProcessor(processor Processor) *pipelineProcessor {
+func (p *pipelineProcessor) addProcessor(processor Processor) *pipelineProcessor {
 	p.processors = append(p.processors, processor)
 	return p
 }
 
 func (p *pipelineProcessor) Process(exchange *Exchange) {
-	if !exchange.On(p.stepName) {
-		return
-	}
-
 	for _, processor := range p.processors {
 		processor.Process(exchange)
 		if exchange.IsError() && p.stopOnError {
