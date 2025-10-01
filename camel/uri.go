@@ -1,4 +1,4 @@
-package uri
+package camel
 
 import (
 	"net/url"

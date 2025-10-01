@@ -24,6 +24,13 @@ type identifiable interface {
 	getId() string
 }
 
+func getProcessorId(p Processor) string {
+	if idd, isIdd := p.(identifiable); isIdd {
+		return idd.getId()
+	}
+	return fmt.Sprintf("%T", p)
+}
+
 type messageHistory struct {
 	time        time.Time
 	elapsedTime int64
@@ -67,23 +74,22 @@ func decorateProcessor(p Processor, preProcessorFunc func(*Exchange), postProces
 }
 
 func (p *processor) Process(exchange *Exchange) {
-	start := time.Now()
-	stepName := ""
-	if idd, isIdd := p.decoratedProcessor.(identifiable); isIdd {
-		stepName = idd.getId()
-	}
-
 	mh := &messageHistory{
-		time:        start,
+		time:        time.Now(),
 		elapsedTime: -1,
 		routeName:   "",
-		stepName:    stepName,
+		stepName:    getProcessorId(p.decoratedProcessor),
 	}
 	exchange.pushMessageHistory(mh)
 
 	defer func() {
 		mh.elapsedTime = time.Since(mh.time).Milliseconds()
 	}()
+
+	if err := exchange.CheckCancelOrTimeout(); err != nil {
+		exchange.SetError(err)
+		return
+	}
 
 	if p.postProcessorFunc != nil {
 		defer func() {

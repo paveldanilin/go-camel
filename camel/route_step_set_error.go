@@ -1,4 +1,4 @@
-package dsl
+package camel
 
 import "fmt"
 
@@ -13,6 +13,10 @@ func (s *SetErrorStep) StepName() string {
 	}
 	return s.Name
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// RouteBuilder :: SetError
+// ---------------------------------------------------------------------------------------------------------------------
 
 func (b *RouteBuilder) SetError(stepName string, err error) *RouteBuilder {
 	if b.err != nil {

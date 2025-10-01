@@ -1,7 +1,7 @@
 package test
 
 import (
-	uri2 "github.com/paveldanilin/go-camel/camel/uri"
+	uri2 "github.com/paveldanilin/go-camel/camel"
 	"testing"
 )
 
