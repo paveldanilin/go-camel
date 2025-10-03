@@ -4,8 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/paveldanilin/go-camel/dsl"
-	"github.com/paveldanilin/go-camel/uri"
 	"sync"
 )
 
@@ -37,7 +35,7 @@ type Producer interface {
 }
 
 type Endpoint interface {
-	Uri() *uri.URI
+	Uri() *URI
 	CreateConsumer(processor Processor) (Consumer, error)
 	CreateProducer() (Producer, error)
 }
@@ -47,6 +45,7 @@ type Component interface {
 	CreateEndpoint(uri string) (Endpoint, error)
 }
 
+// RuntimeAware indicates that Component implementation uses Runtime internally.
 type RuntimeAware interface {
 	SetRuntime(runtime *Runtime)
 }
@@ -58,60 +57,73 @@ type route struct {
 }
 
 type Runtime struct {
-	mu              sync.RWMutex
-	funcRegistry    FuncRegistry
-	exchangeFactory ExchangeFactory
-	components      map[string]Component
-	routes          map[string]*route
-	endpoints       map[string]Endpoint
-	consumers       []Consumer
-	ctx             context.Context
-	cancel          context.CancelFunc
+	mu sync.RWMutex
+
+	funcRegistry      FuncRegistry
+	componentRegistry ComponentRegistry
+	exchangeFactory   ExchangeFactory
+
+	routes    map[string]*route
+	endpoints map[string]Endpoint
+	consumers []Consumer
+
+	ctx    context.Context
+	cancel context.CancelFunc
 }
 
-type RuntimeOption func(*Runtime)
+type RuntimeConfig struct {
+	ExchangeFactory   ExchangeFactory
+	FuncRegistry      FuncRegistry
+	ComponentRegistry ComponentRegistry
+}
 
-func NewRuntime(options ...RuntimeOption) *Runtime {
+func NewRuntime(config RuntimeConfig) *Runtime {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	runtime := &Runtime{
-		components:   map[string]Component{},
-		routes:       map[string]*route{},
-		endpoints:    map[string]Endpoint{},
-		consumers:    []Consumer{},
-		funcRegistry: newFuncRegistry(),
-		ctx:          ctx,
-		cancel:       cancel,
+		funcRegistry:      config.FuncRegistry,
+		componentRegistry: config.ComponentRegistry,
+		exchangeFactory:   config.ExchangeFactory,
+
+		routes:    map[string]*route{},
+		endpoints: map[string]Endpoint{},
+		consumers: []Consumer{},
+
+		ctx:    ctx,
+		cancel: cancel,
 	}
 
-	for _, opt := range options {
-		opt(runtime)
+	if runtime.funcRegistry == nil {
+		runtime.funcRegistry = newFuncRegistry()
+	}
+	if runtime.componentRegistry == nil {
+		runtime.componentRegistry = newComponentRegistry()
 	}
 
 	return runtime
 }
 
-func RuntimeWithExchangeFactory(exchangeFactory ExchangeFactory) RuntimeOption {
-	return func(r *Runtime) {
-		r.exchangeFactory = exchangeFactory
-	}
-}
-
+// RegisterFunc registers a named func in runtime.
 func (rt *Runtime) RegisterFunc(name string, fn func(*Exchange)) error {
 	return rt.funcRegistry.RegisterFunc(name, fn)
 }
 
+func (rt *Runtime) MustRegisterFunc(name string, fn func(exchange *Exchange)) {
+	err := rt.RegisterFunc(name, fn)
+	if err != nil {
+		panic(fmt.Errorf("camel: %w", err))
+	}
+}
+
+// RegisterComponent register Component in runtime.
 func (rt *Runtime) RegisterComponent(c Component) error {
-	if _, exists := rt.components[c.Id()]; exists {
-		return errors.New("component already registered: " + c.Id())
+	err := rt.componentRegistry.RegisterComponent(c)
+	if err != nil {
+		return err
 	}
-
-	if runtimeAware, isRuntimeAware := c.(RuntimeAware); isRuntimeAware {
-		runtimeAware.SetRuntime(rt)
+	if rtAware, isRtAware := c.(RuntimeAware); isRtAware {
+		rtAware.SetRuntime(rt)
 	}
-
-	rt.components[c.Id()] = c
-
 	return nil
 }
 
@@ -123,23 +135,19 @@ func (rt *Runtime) MustRegisterComponent(c Component) {
 }
 
 func (rt *Runtime) Component(id string) Component {
-	if c, exists := rt.components[id]; exists {
-		return c
-	}
-
-	return nil
+	return rt.componentRegistry.Component(id)
 }
 
-func (rt *Runtime) RegisterRoute(r *dsl.Route) error {
+func (rt *Runtime) RegisterRoute(r *Route) error {
 	if _, exists := rt.routes[r.Name]; exists {
 		return errors.New("route already registered: " + r.Name)
 	}
 
-	rtRoute, err := compileRoute(r, compilerConfig{
+	rtRoute, err := compileRoute(compilerConfig{
 		funcRegistry:      rt.funcRegistry,
 		preProcessorFunc:  rt.preProcessor,
 		postProcessorFunc: rt.postProcessor,
-	})
+	}, r)
 	if err != nil {
 		return err
 	}
@@ -149,10 +157,10 @@ func (rt *Runtime) RegisterRoute(r *dsl.Route) error {
 	return nil
 }
 
-func (rt *Runtime) MustRegisterRoute(r *dsl.Route) {
+func (rt *Runtime) MustRegisterRoute(r *Route) {
 	err := rt.RegisterRoute(r)
 	if err != nil {
-		panic(fmt.Errorf("camel: %w", err))
+		panic(fmt.Errorf("camel: failed to register route: %w", err))
 	}
 }
 
@@ -243,14 +251,14 @@ func (rt *Runtime) Start() error {
 
 	for _, route := range rt.routes {
 
-		fromUri, err := uri.Parse(route.from, nil)
+		fromUri, err := Parse(route.from, nil)
 		if err != nil {
 			return fmt.Errorf("invalid URI format in route '%s' that consumes from '%s': %w", route.name, route.from, err)
 		}
 
 		// Resolve component
-		component, componentExists := rt.components[fromUri.Component()]
-		if !componentExists {
+		component := rt.componentRegistry.Component(fromUri.Component())
+		if component == nil {
 			return fmt.Errorf("component '%s' not found in route '%s' that consumes from '%s'", fromUri.Component(), route.name, route.from)
 		}
 
@@ -296,7 +304,7 @@ func (rt *Runtime) Stop() error {
 
 	rt.consumers = nil
 	rt.endpoints = nil
-	rt.components = nil
+	//rt.components = nil
 	rt.routes = nil
 
 	return nil

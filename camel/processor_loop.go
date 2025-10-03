@@ -8,16 +8,16 @@ type loopCountProcessor struct {
 	id string
 
 	count      int
-	processors []Processor
 	copy       bool // TRUE - make shallow copy for each iteration
+	processors []Processor
 }
 
 func newLoopCountProcessor(id string, count int) *loopCountProcessor {
 	return &loopCountProcessor{
 		id:         id,
 		count:      count,
-		processors: []Processor{},
 		copy:       true,
+		processors: []Processor{},
 	}
 }
 
@@ -75,8 +75,8 @@ type loopWhileProcessor struct {
 	id string
 
 	predicate  Predicate
-	processors []Processor
 	copy       bool // TRUE - make shallow copy for each iteration
+	processors []Processor
 }
 
 func newLoopWhileProcessor(id string, predicate Expr) *loopWhileProcessor {

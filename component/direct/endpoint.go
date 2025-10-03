@@ -2,12 +2,11 @@ package direct
 
 import (
 	"github.com/paveldanilin/go-camel/camel"
-	"github.com/paveldanilin/go-camel/uri"
 	"sync"
 )
 
 type Endpoint struct {
-	uri      *uri.URI
+	uri      *camel.URI
 	mu       sync.RWMutex
 	consumer *Consumer
 	producer *Producer
@@ -15,7 +14,7 @@ type Endpoint struct {
 	name string
 }
 
-func (e *Endpoint) Uri() *uri.URI {
+func (e *Endpoint) Uri() *camel.URI {
 	return e.uri
 }
 

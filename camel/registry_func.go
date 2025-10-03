@@ -26,7 +26,7 @@ func (fr *funcRegistry) RegisterFunc(name string, fn func(*Exchange)) error {
 	defer fr.mu.Unlock()
 
 	if _, exists := fr.funcMap[name]; exists {
-		return errors.New("camel: func registry: func already registered")
+		return errors.New("func already registered")
 	}
 
 	fr.funcMap[name] = fn

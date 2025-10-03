@@ -1,4 +1,4 @@
-package dsl
+package camel
 
 import (
 	"fmt"
@@ -18,19 +18,24 @@ type Route struct {
 type RouteBuilder struct {
 	route *Route
 	stack []*[]RouteStep // step stack
-	//lastChoice *ChoiceStep    // link to the last Choice for adding When/Otherwise.
-	err error // for error tracking
+	err   error          // for error tracking
 }
 
-func NewRouteBuilder(name, from string) *RouteBuilder {
-	route := &Route{
+func NewRoute(name, from string) *RouteBuilder {
+	if name == "" {
+		panic(fmt.Errorf("camel: 'name' must be not empty string"))
+	}
+	if from == "" {
+		panic(fmt.Errorf("camel: 'from' must be not empty string"))
+	}
+	r := &Route{
 		Name:  name,
 		From:  from,
 		Steps: []RouteStep{},
 	}
 	return &RouteBuilder{
-		route: route,
-		stack: []*[]RouteStep{&route.Steps},
+		route: r,
+		stack: []*[]RouteStep{&r.Steps},
 	}
 }
 
@@ -41,7 +46,7 @@ func (b *RouteBuilder) Build() (*Route, error) {
 
 	// Check size != 1 then not all steps where closed properly.
 	if len(b.stack) != 1 {
-		return nil, fmt.Errorf("camel: dsl route builder: not all nested steps where closed properly (PipelineStep, ChoiceStep,... etc)")
+		return nil, fmt.Errorf("camel: route builder: not all nested steps where closed properly (PipelineStep, ChoiceStep,... etc)")
 	}
 	return b.route, nil
 }
@@ -68,7 +73,7 @@ func (b *RouteBuilder) pushStack(steps *[]RouteStep) {
 // popStack pops builder.
 func (b *RouteBuilder) popStack() {
 	if len(b.stack) <= 1 {
-		b.err = fmt.Errorf("camel: dsl route builder: you are trying to close more block that were opened")
+		b.err = fmt.Errorf("camel: route builder: you are trying to close more block that were opened")
 		return
 	}
 	b.stack = b.stack[:len(b.stack)-1]
@@ -135,7 +140,36 @@ func walkSteps(steps []RouteStep, depth int, visitor StepVisitorFunc) error {
 			if err := walkSteps(s.Steps, depth+1, visitor); err != nil {
 				return err
 			}
+		case *MulticastStep:
+			for _, subRoute := range s.Outputs {
+				if err := visitor(subRoute, depth+1); err != nil {
+					return err
+				}
+				if err := walkSteps(subRoute.Steps, depth+3, visitor); err != nil {
+					return err
+				}
+			}
 		}
 	}
 	return nil
+}
+
+type Expression struct {
+	Language   string // "simple", "constant",...
+	Expression string // Language != "constant"
+	Value      any
+}
+
+func Simple(expression string) Expression {
+	return Expression{
+		Language:   "simple",
+		Expression: expression,
+	}
+}
+
+func Constant(value any) Expression {
+	return Expression{
+		Language: "constant",
+		Value:    value,
+	}
 }

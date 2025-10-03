@@ -3,7 +3,6 @@ package camel
 import (
 	"errors"
 	"fmt"
-	"github.com/paveldanilin/go-camel/dsl"
 	"strings"
 )
 
@@ -13,8 +12,8 @@ type compilerConfig struct {
 	postProcessorFunc func(exchange *Exchange)
 }
 
-// compileRoute takes dsl.Route and returns runtime representation of route.
-func compileRoute(r *dsl.Route, c compilerConfig) (*route, error) {
+// compileRoute takes Route and returns runtime representation of route.
+func compileRoute(c compilerConfig, r *Route) (*route, error) {
 	producer, err := compileRouteStep(c, r.Steps...)
 	if err != nil {
 		return nil, err
@@ -27,7 +26,7 @@ func compileRoute(r *dsl.Route, c compilerConfig) (*route, error) {
 	}, nil
 }
 
-func compileRouteStep(c compilerConfig, s ...dsl.RouteStep) (Processor, error) {
+func compileRouteStep(c compilerConfig, s ...RouteStep) (Processor, error) {
 	if s == nil || len(s) == 0 {
 		return nil, errors.New("empty steps")
 	}
@@ -45,19 +44,28 @@ func compileRouteStep(c compilerConfig, s ...dsl.RouteStep) (Processor, error) {
 	}
 
 	switch t := s[0].(type) {
-	case *dsl.SetBodyStep:
+	// SetBodyStep -> setBodyProcessor
+	case *SetBodyStep:
 		p := newSetBodyProcessor(t.StepName(), compileExpr(t.BodyValue))
 		return decorateProcessor(p, c.preProcessorFunc, c.postProcessorFunc), nil
-	case *dsl.SetHeaderStep:
+
+		// SetHeaderStep -> setHeaderProcessor
+	case *SetHeaderStep:
 		p := newSetHeaderProcessor(t.StepName(), t.HeaderName, compileExpr(t.HeaderValue))
 		return decorateProcessor(p, c.preProcessorFunc, c.postProcessorFunc), nil
-	case *dsl.SetPropertyStep:
+
+		// SetPropertyStep -> setPropertyProcessor
+	case *SetPropertyStep:
 		p := newSetPropertyProcessor(t.StepName(), t.PropertyName, compileExpr(t.PropertyValue))
 		return decorateProcessor(p, c.preProcessorFunc, c.postProcessorFunc), nil
-	case *dsl.ToStep:
+
+		// ToStep -> toProcessor
+	case *ToStep:
 		p := newToProcessor(t.StepName(), t.URI)
 		return decorateProcessor(p, c.preProcessorFunc, c.postProcessorFunc), nil
-	case *dsl.PipelineStep:
+
+		// PipelineStep -> pipelineProcessor
+	case *PipelineStep:
 		pipeline := newPipelineProcessor(t.StepName(), t.StoOnError)
 		for _, step := range t.Steps {
 			p, err := compileRouteStep(c, step)
@@ -67,7 +75,9 @@ func compileRouteStep(c compilerConfig, s ...dsl.RouteStep) (Processor, error) {
 			pipeline.addProcessor(p)
 		}
 		return decorateProcessor(pipeline, c.preProcessorFunc, c.postProcessorFunc), nil
-	case *dsl.ChoiceStep:
+
+		// ChoiceStep -> choiceProcessor
+	case *ChoiceStep:
 		p := newChoiceProcessor(t.StepName())
 		for _, when := range t.WhenCases {
 			whenBody, err := compileRouteStep(c, when.Steps...)
@@ -84,15 +94,17 @@ func compileRouteStep(c compilerConfig, s ...dsl.RouteStep) (Processor, error) {
 			p.setOtherwise(otherwise)
 		}
 		return decorateProcessor(p, c.preProcessorFunc, c.postProcessorFunc), nil
-	case *dsl.TryStep:
+
+		// TryStep -> tryProcessor
+	case *TryStep:
 		p := newTryProcessor(t.StepName())
 
 		for _, tryStep := range t.Steps {
-			tryProcessor, err := compileRouteStep(c, tryStep)
+			tp, err := compileRouteStep(c, tryStep)
 			if err != nil {
 				return nil, err
 			}
-			p.addProcessor(tryProcessor)
+			p.addProcessor(tp)
 		}
 
 		for _, catch := range t.WhenCatches {
@@ -112,35 +124,48 @@ func compileRouteStep(c compilerConfig, s ...dsl.RouteStep) (Processor, error) {
 		}
 		return decorateProcessor(p, c.preProcessorFunc, c.postProcessorFunc), nil
 
-		// FuncStep compiles dsl.FuncStep -> funcProcessor
-	case *dsl.FuncStep:
+		// FuncStep -> funcProcessor
+	case *FuncStep:
 		if userFunc, isUserFunc := t.Func.(func(*Exchange)); isUserFunc {
 			return decorateProcessor(newFuncProcessor(t.StepName(), userFunc), c.preProcessorFunc, c.postProcessorFunc), nil
 		}
 		if storedFuncName, isStoredFunc := t.Func.(string); isStoredFunc {
 			storedFunc := c.funcRegistry.Func(storedFuncName)
 			if storedFunc == nil {
-				return nil, fmt.Errorf("camel: func step: %s: function not found in registry: %s", t.StepName(), storedFuncName)
+				return nil, fmt.Errorf("func step: %s: function not found in registry: %s, try to register it first RegisterFunc/MustRegisterFunc",
+					t.StepName(), storedFuncName)
 			}
 			return decorateProcessor(newFuncProcessor(t.StepName(), storedFunc), c.preProcessorFunc, c.postProcessorFunc), nil
 		}
-		return nil, fmt.Errorf("camel: func step: %s: expected function signature 'func(*Exchange)'", t.StepName())
+		return nil, fmt.Errorf("func step: %s: expected function signature 'func(*Exchange)'", t.StepName())
 
-		// SetErrorStep compiles dsl.SetErrorStep -> setErrorProcessor
-	case *dsl.SetErrorStep:
+		// SetErrorStep -> setErrorProcessor
+	case *SetErrorStep:
 		p := newSetErrorProcessor(t.StepName(), t.Error)
 		return decorateProcessor(p, c.preProcessorFunc, c.postProcessorFunc), nil
 
-		// SleepStep compiles dsl.SleepStep -> sleepProcessor
-	case *dsl.SleepStep:
+		// SleepStep -> sleepProcessor
+	case *SleepStep:
 		p := newSleepProcessor(t.StepName(), t.Duration)
+		return decorateProcessor(p, c.preProcessorFunc, c.postProcessorFunc), nil
+
+		// MulticastStep -> multicastProcessor
+	case *MulticastStep:
+		p := newMulticastProcessor(t.StepName(), t.Parallel, t.StopOnError, t.Aggregator)
+		for _, output := range t.Outputs {
+			outputProcessor, err := compileRouteStep(c, output.Steps...)
+			if err != nil {
+				return nil, err
+			}
+			p.addOutput(outputProcessor)
+		}
 		return decorateProcessor(p, c.preProcessorFunc, c.postProcessorFunc), nil
 	}
 
-	return nil, fmt.Errorf("camel: unknown route step: %T", s[0])
+	return nil, fmt.Errorf("unknown route step: %T", s[0])
 }
 
-func compileExpr(expression dsl.Expression) Expr {
+func compileExpr(expression Expression) Expr {
 	switch expression.Language {
 	case "simple":
 		s, err := newSimpleExpr(expression.Expression)
@@ -155,19 +180,19 @@ func compileExpr(expression dsl.Expression) Expr {
 	panic(fmt.Errorf("camel: expression: unknown language: %s", expression.Language))
 }
 
-func compileErrMatcher(matcher dsl.ErrorMatcher) errorMatcher {
+func compileErrMatcher(matcher ErrorMatcher) errorMatcher {
 	if strings.TrimSpace(matcher.Target) == "*" || strings.TrimSpace(matcher.Target) == "" {
 		return errorAny()
 	}
 
 	switch matcher.MatchMode {
-	case dsl.ErrorMatchModeIs:
+	case ErrorMatchModeIs:
 		return errorIs(matcher.Target)
-	case dsl.ErrorMatchModeContains:
+	case ErrorMatchModeContains:
 		return errorContains(matcher.Target)
-	case dsl.ErrorMatchModeEquals:
+	case ErrorMatchModeEquals:
 		return errorEquals(matcher.Target)
-	case dsl.ErrorMatchModeRegex:
+	case ErrorMatchModeRegex:
 		return errorMatches(matcher.Target)
 	}
 

@@ -6,68 +6,82 @@ import (
 	"github.com/paveldanilin/go-camel/camel"
 	"github.com/paveldanilin/go-camel/component/direct"
 	"github.com/paveldanilin/go-camel/component/timer"
-	"github.com/paveldanilin/go-camel/dsl"
 	"strings"
 	"time"
 )
 
 func main() {
 
-	camelRuntime := camel.NewRuntime()
+	camelRuntime := camel.NewRuntime(camel.RuntimeConfig{
+		ExchangeFactory: nil,
+		FuncRegistry:    nil,
+	})
 	camelRuntime.MustRegisterComponent(direct.NewComponent())
 	camelRuntime.MustRegisterComponent(timer.NewComponent())
 
-	camelRuntime.RegisterFunc("x10Func", func(exchange *camel.Exchange) {
+	camelRuntime.MustRegisterFunc("x10Func", func(exchange *camel.Exchange) {
 		exchange.Message().Body = exchange.Message().Body.(int) * 100
 	})
 
 	r, err := camel.NewRoute("sum", "direct:sum").
 		SetBody("calc sum", camel.Simple("headers.a + headers.b")).
 		Choice("test sum result").
-		When(camel.Simple("body == 40"), func(b *dsl.RouteBuilder) {
+		When(camel.Simple("body == 40"), func(b *camel.RouteBuilder) {
 			b.Sleep("", 2500)
 			b.SetBody("double body value", camel.Simple("body * 2"))
 		}).
-		Otherwise(func(b *dsl.RouteBuilder) {
+		Otherwise(func(b *camel.RouteBuilder) {
 			b.SetBody("x*4", camel.Simple("body * 4"))
 		}).
-		Try("", func(b *dsl.RouteBuilder) {
-			// Inline function
-			//b.Func("x10", func(exchange *camel.Exchange) {
-			//	exchange.Message().Body = exchange.Message().Body.(int) * 100
-			//})
-
+		Try("", func(b *camel.RouteBuilder) {
 			// Stored function (register it first RegistrFunc)
 			b.Func("x10", "x10Func")
-
-			//b.Func("panic", func(exchange *camel.Exchange) {
-			//	panic(errors.New("!panic!"))
-			//})
-			//b.Func("zzzz", func(exchange *camel.Exchange) {
-			//	println("\n!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!\n")
-			//})
 		}).
-		Catch(camel.ErrAny(), func(b *dsl.RouteBuilder) {
+		Catch(camel.ErrAny(), func(b *camel.RouteBuilder) {
 			b.SetBody("xxx", camel.Simple("'>>' + error.Error() + '<<'"))
 		}).
 		EndTry().
+		Multicast("parallel").ParallelProcessing().
+		Output(func(b *camel.RouteBuilder) {
+			// TODO: worker1
+			b.Sleep("x1", 15000)
+			b.Func("xx", func(_ *camel.Exchange) {
+				println("xxxx")
+			})
+		}).
+		Output(func(b *camel.RouteBuilder) {
+			// TODO: worker2
+			b.Sleep("x2", 5000)
+			b.Func("yy", func(_ *camel.Exchange) {
+				println("yyyy")
+			})
+		}).
+		EndMulticast().
 		Build()
 	if err != nil {
 		panic(err)
 	}
+
+	getDepth := func(step camel.RouteStep, depth int) error {
+		fmt.Printf("%s> %s [%T]\n", strings.Repeat("-", depth+1), step.StepName(), step)
+		return nil
+	}
+	_ = camel.WalkRoute(r, getDepth)
 
 	camelRuntime.MustRegisterRoute(r)
 
 	// Ticks every 5 seconds
-	r, err = camel.NewRoute("ticker", "timer:myTimer?interval=5s").
-		Pipeline("on tick", true, func(b *dsl.RouteBuilder) {
-			b.SetBody("set count", camel.Simple("'COUNT: ' + string(headers.CamelTimerCounter)"))
-		}).
-		Build()
-	if err != nil {
-		panic(err)
-	}
-	camelRuntime.MustRegisterRoute(r)
+	/*
+		r, err = camel.NewRoute("ticker", "timer:myTimer?interval=5s").
+			Pipeline("on tick", true, func(b *dsl.RouteBuilder) {
+				b.SetBody("set count", camel.Simple("'COUNT: ' + string(headers.CamelTimerCounter)"))
+			}).
+			Build()
+		if err != nil {
+			panic(err)
+		}
+		camelRuntime.MustRegisterRoute(r)
+	*/
 
 	// Start Camel runtime
 	err = camelRuntime.Start()
@@ -76,7 +90,7 @@ func main() {
 	}
 
 	// Calc sum
-	ctx, _ := context.WithTimeout(context.Background(), 2*time.Second)
+	ctx, _ := context.WithTimeout(context.Background(), 60*time.Second)
 	ex, err := camelRuntime.Send(ctx, "direct:sum", 0, camel.Map{
 		"a": 1,
 		"b": 39,

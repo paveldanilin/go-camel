@@ -2,7 +2,6 @@ package timer
 
 import (
 	"github.com/paveldanilin/go-camel/camel"
-	u "github.com/paveldanilin/go-camel/uri"
 )
 
 type Component struct {
@@ -18,7 +17,7 @@ func (c *Component) Id() string {
 }
 
 func (c *Component) CreateEndpoint(uri string) (camel.Endpoint, error) {
-	parsedUri, err := u.Parse(uri, nil)
+	parsedUri, err := camel.Parse(uri, nil)
 	if err != nil {
 		return nil, err
 	}
