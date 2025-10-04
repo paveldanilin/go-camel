@@ -31,33 +31,6 @@ func getProcessorId(p Processor) string {
 	return fmt.Sprintf("%T", p)
 }
 
-type messageHistory struct {
-	time        time.Time
-	elapsedTime int64
-	routeName   string
-	stepName    string
-}
-
-func (mh *messageHistory) ElapsedTime() int64 {
-	return mh.elapsedTime
-}
-
-func (mh *messageHistory) Time() time.Time {
-	return mh.time
-}
-
-func (mh *messageHistory) RouteName() string {
-	return ""
-}
-
-func (mh *messageHistory) StepName() string {
-	return mh.stepName
-}
-
-func (mh *messageHistory) Message() *Message {
-	return nil
-}
-
 // processor represents a decorator for any processor with pre/post processing functions.
 type processor struct {
 	decoratedProcessor Processor
@@ -74,7 +47,7 @@ func decorateProcessor(p Processor, preProcessorFunc func(*Exchange), postProces
 }
 
 func (p *processor) Process(exchange *Exchange) {
-	mh := &messageHistory{
+	mh := &MessageHistory{
 		time:        time.Now(),
 		elapsedTime: -1,
 		routeName:   "",
