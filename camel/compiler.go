@@ -7,9 +7,10 @@ import (
 )
 
 type compilerConfig struct {
-	funcRegistry      FuncRegistry
-	preProcessorFunc  func(exchange *Exchange)
-	postProcessorFunc func(exchange *Exchange)
+	funcRegistry       FuncRegistry
+	dataFormatRegistry DataFormatRegistry
+	preProcessorFunc   func(exchange *Exchange)
+	postProcessorFunc  func(exchange *Exchange)
 }
 
 // compileRoute takes Route and returns runtime representation of route.

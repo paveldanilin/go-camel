@@ -45,9 +45,10 @@ type route struct {
 type Runtime struct {
 	mu sync.RWMutex
 
-	funcRegistry      FuncRegistry
-	componentRegistry ComponentRegistry
-	exchangeFactory   ExchangeFactory
+	funcRegistry       FuncRegistry
+	componentRegistry  ComponentRegistry
+	dataFormatRegistry DataFormatRegistry
+	exchangeFactory    ExchangeFactory
 
 	routes    map[string]*route
 	endpoints map[string]Endpoint
@@ -58,18 +59,20 @@ type Runtime struct {
 }
 
 type RuntimeConfig struct {
-	ExchangeFactory   ExchangeFactory
-	FuncRegistry      FuncRegistry
-	ComponentRegistry ComponentRegistry
+	ExchangeFactory    ExchangeFactory
+	FuncRegistry       FuncRegistry
+	ComponentRegistry  ComponentRegistry
+	DataFormatRegistry DataFormatRegistry
 }
 
 func NewRuntime(config RuntimeConfig) *Runtime {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	runtime := &Runtime{
-		funcRegistry:      config.FuncRegistry,
-		componentRegistry: config.ComponentRegistry,
-		exchangeFactory:   config.ExchangeFactory,
+		funcRegistry:       config.FuncRegistry,
+		componentRegistry:  config.ComponentRegistry,
+		dataFormatRegistry: config.DataFormatRegistry,
+		exchangeFactory:    config.ExchangeFactory,
 
 		routes:    map[string]*route{},
 		endpoints: map[string]Endpoint{},
@@ -84,6 +87,9 @@ func NewRuntime(config RuntimeConfig) *Runtime {
 	}
 	if runtime.componentRegistry == nil {
 		runtime.componentRegistry = newComponentRegistry()
+	}
+	if runtime.dataFormatRegistry == nil {
+		runtime.dataFormatRegistry = newDataFormatRegistry()
 	}
 
 	return runtime
@@ -122,6 +128,17 @@ func (rt *Runtime) MustRegisterComponent(c Component) {
 
 func (rt *Runtime) Component(id string) Component {
 	return rt.componentRegistry.Component(id)
+}
+
+func (rt *Runtime) RegisterDataFormat(name string, dataFormat DataFormat) error {
+	return rt.dataFormatRegistry.RegisterDataFormat(name, dataFormat)
+}
+
+func (rt *Runtime) MustRegisterDataFormat(name string, dataFormat DataFormat) {
+	err := rt.RegisterDataFormat(name, dataFormat)
+	if err != nil {
+		panic(fmt.Errorf("camel: %w", err))
+	}
 }
 
 func (rt *Runtime) RegisterRoute(r *Route) error {
