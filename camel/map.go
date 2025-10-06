@@ -36,7 +36,11 @@ func (m Map) Copy() Map {
 
 	cp := make(Map, len(m))
 	for k, v := range m {
-		cp[k] = v
+		if copier, isCopier := v.(Copier); isCopier {
+			cp[k] = copier.Copy()
+		} else {
+			cp[k] = v
+		}
 	}
 
 	return cp

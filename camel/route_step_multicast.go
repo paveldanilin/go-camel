@@ -5,11 +5,11 @@ import (
 	"strings"
 )
 
-type Output struct {
+type MulticastOutput struct {
 	Steps []RouteStep
 }
 
-func (sr Output) StepName() string {
+func (sr MulticastOutput) StepName() string {
 	return "output"
 }
 
@@ -18,7 +18,7 @@ type MulticastStep struct {
 	Parallel    bool
 	StopOnError bool
 	Aggregator  ExchangeAggregator
-	Outputs     []Output
+	Outputs     []MulticastOutput
 }
 
 func (s *MulticastStep) StepName() string {
@@ -46,6 +46,11 @@ type MulticastStepBuilder struct {
 	multicastStep *MulticastStep
 }
 
+func (mb *MulticastStepBuilder) StepName(stepName string) *MulticastStepBuilder {
+	mb.multicastStep.Name = stepName
+	return mb
+}
+
 func (mb *MulticastStepBuilder) ParallelProcessing() *MulticastStepBuilder {
 	mb.multicastStep.Parallel = true
 	return mb
@@ -71,7 +76,7 @@ func (mb *MulticastStepBuilder) Output(configure func(b *RouteBuilder)) *Multica
 		return mb
 	}
 
-	subRoute := Output{Steps: []RouteStep{}}
+	subRoute := MulticastOutput{Steps: []RouteStep{}}
 
 	mb.builder.pushStack(&subRoute.Steps)
 	configure(mb.builder)
@@ -90,13 +95,12 @@ func (mb *MulticastStepBuilder) EndMulticast() *RouteBuilder {
 // RouteBuilder :: Multicast
 // ---------------------------------------------------------------------------------------------------------------------
 
-func (b *RouteBuilder) Multicast(stepName string) *MulticastStepBuilder {
+func (b *RouteBuilder) Multicast() *MulticastStepBuilder {
 	if b.err != nil {
 		return &MulticastStepBuilder{builder: b}
 	}
 
 	multicastStep := &MulticastStep{
-		Name:        stepName,
 		Parallel:    false,
 		StopOnError: false,
 	}

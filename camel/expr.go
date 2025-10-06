@@ -66,19 +66,7 @@ func mustSimpleExpr(e string) *simpleExpr {
 }
 
 func (e *simpleExpr) Eval(exchange *Exchange) (any, error) {
-	// TODO: move to Exchange?
-	env := map[string]any{
-		"body":    exchange.Message().Body,
-		"headers": exchange.Message().Headers().All(),
-		"header":  exchange.Message().Headers().All(),
-		"error":   exchange.Error(),
-		"exchange": map[string]any{
-			"error":      exchange.Error(),
-			"properties": exchange.Properties().All(),
-		},
-	}
-
-	return expr.Run(e.program, env)
+	return expr.Run(e.program, exchange.asMap())
 }
 
 func (e *simpleExpr) String() string {

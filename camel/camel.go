@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
+	"os"
 	"sync"
 )
 
@@ -54,6 +56,8 @@ type Runtime struct {
 	endpoints map[string]Endpoint
 	consumers []Consumer
 
+	logger Logger
+
 	ctx    context.Context
 	cancel context.CancelFunc
 }
@@ -63,6 +67,7 @@ type RuntimeConfig struct {
 	FuncRegistry       FuncRegistry
 	ComponentRegistry  ComponentRegistry
 	DataFormatRegistry DataFormatRegistry
+	Logger             Logger
 }
 
 func NewRuntime(config RuntimeConfig) *Runtime {
@@ -73,6 +78,7 @@ func NewRuntime(config RuntimeConfig) *Runtime {
 		componentRegistry:  config.ComponentRegistry,
 		dataFormatRegistry: config.DataFormatRegistry,
 		exchangeFactory:    config.ExchangeFactory,
+		logger:             config.Logger,
 
 		routes:    map[string]*route{},
 		endpoints: map[string]Endpoint{},
@@ -91,11 +97,14 @@ func NewRuntime(config RuntimeConfig) *Runtime {
 	if runtime.dataFormatRegistry == nil {
 		runtime.dataFormatRegistry = newDataFormatRegistry()
 	}
+	if runtime.logger == nil {
+		runtime.logger = NewSlogLogger(slog.New(slog.NewTextHandler(os.Stdout, nil)), LogLevelInfo)
+	}
 
 	return runtime
 }
 
-// RegisterFunc registers a named func in runtime.
+// RegisterFunc registers a named func in the current Runtime.
 func (rt *Runtime) RegisterFunc(name string, fn func(*Exchange)) error {
 	return rt.funcRegistry.RegisterFunc(name, fn)
 }
@@ -107,7 +116,7 @@ func (rt *Runtime) MustRegisterFunc(name string, fn func(exchange *Exchange)) {
 	}
 }
 
-// RegisterComponent register Component in runtime.
+// RegisterComponent register the given Component in the current Runtime.
 func (rt *Runtime) RegisterComponent(c Component) error {
 	err := rt.componentRegistry.RegisterComponent(c)
 	if err != nil {
@@ -141,27 +150,29 @@ func (rt *Runtime) MustRegisterDataFormat(name string, dataFormat DataFormat) {
 	}
 }
 
-func (rt *Runtime) RegisterRoute(r *Route) error {
-	if _, exists := rt.routes[r.Name]; exists {
-		return errors.New("route already registered: " + r.Name)
+func (rt *Runtime) RegisterRoute(routeDefinition *Route) error {
+	if _, exists := rt.routes[routeDefinition.Name]; exists {
+		return errors.New("route already registered: " + routeDefinition.Name)
 	}
 
-	rtRoute, err := compileRoute(compilerConfig{
-		funcRegistry:      rt.funcRegistry,
-		preProcessorFunc:  rt.preProcessor,
-		postProcessorFunc: rt.postProcessor,
-	}, r)
+	r, err := compileRoute(compilerConfig{
+		funcRegistry:       rt.funcRegistry,
+		preProcessorFunc:   rt.preProcessor,
+		postProcessorFunc:  rt.postProcessor,
+		logger:             rt.logger,
+		dataFormatRegistry: rt.dataFormatRegistry,
+	}, routeDefinition)
 	if err != nil {
 		return err
 	}
 
-	rt.routes[r.Name] = rtRoute
+	rt.routes[routeDefinition.Name] = r
 
 	return nil
 }
 
-func (rt *Runtime) MustRegisterRoute(r *Route) {
-	err := rt.RegisterRoute(r)
+func (rt *Runtime) MustRegisterRoute(routeDefinition *Route) {
+	err := rt.RegisterRoute(routeDefinition)
 	if err != nil {
 		panic(fmt.Errorf("camel: failed to register route: %w", err))
 	}

@@ -14,7 +14,23 @@ func (s *SleepStep) StepName() string {
 	return s.Name
 }
 
-func (b *RouteBuilder) Sleep(stepName string, dur int64) *RouteBuilder {
+// ---------------------------------------------------------------------------------------------------------------------
+// RouteBuilder :: Sleep
+// ---------------------------------------------------------------------------------------------------------------------
+
+// Sleep adds SleepStep to the current Route with the given dur (milliseconds).
+func (b *RouteBuilder) Sleep(dur int64) *RouteBuilder {
+	if b.err != nil {
+		return b
+	}
+	b.addStep(&SleepStep{
+		Duration: dur,
+	})
+	return b
+}
+
+// SleepWithName adds SleepStep to the current Route with the given stepName and dur (milliseconds).
+func (b *RouteBuilder) SleepWithName(stepName string, dur int64) *RouteBuilder {
 	if b.err != nil {
 		return b
 	}

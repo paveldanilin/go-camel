@@ -27,34 +27,30 @@ func main() {
 		SetBody("calc sum", camel.Simple("headers.a + headers.b")).
 		Choice("test sum result").
 		When(camel.Simple("body == 40"), func(b *camel.RouteBuilder) {
-			b.Sleep("", 2500)
+			b.Sleep(2500)
 			b.SetBody("double body value", camel.Simple("body * 2"))
 		}).
 		Otherwise(func(b *camel.RouteBuilder) {
 			b.SetBody("x*4", camel.Simple("body * 4"))
 		}).
 		Try("", func(b *camel.RouteBuilder) {
-			// Stored function (register it first RegistrFunc)
 			b.Func("x10", "x10Func")
 		}).
 		Catch(camel.ErrAny(), func(b *camel.RouteBuilder) {
 			b.SetBody("xxx", camel.Simple("'>>' + error.Error() + '<<'"))
 		}).
 		EndTry().
-		Multicast("parallel").ParallelProcessing().
+		Multicast().ParallelProcessing().
 		Output(func(b *camel.RouteBuilder) {
 			// TODO: worker1
-			b.Sleep("x1", 15000)
-			b.Func("xx", func(_ *camel.Exchange) {
-				println("xxxx")
-			})
+			b.Sleep(15000)
+			b.LogWithBuilder().Msg("xxx> ${body}").Level(camel.LogLevelWarn)
 		}).
 		Output(func(b *camel.RouteBuilder) {
 			// TODO: worker2
-			b.Sleep("x2", 5000)
-			b.Func("yy", func(_ *camel.Exchange) {
-				println("yyyy")
-			})
+			b.Sleep(5000)
+			b.SetProperty("setGame", "game", camel.Constant("DooM"))
+			b.Log("yy>>${body}>>${properties.game}")
 		}).
 		EndMulticast().
 		Build()

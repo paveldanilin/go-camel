@@ -11,6 +11,7 @@ type compilerConfig struct {
 	dataFormatRegistry DataFormatRegistry
 	preProcessorFunc   func(exchange *Exchange)
 	postProcessorFunc  func(exchange *Exchange)
+	logger             Logger
 }
 
 // compileRoute takes Route and returns runtime representation of route.
@@ -160,6 +161,10 @@ func compileRouteStep(c compilerConfig, s ...RouteStep) (Processor, error) {
 			}
 			p.addOutput(outputProcessor)
 		}
+		return decorateProcessor(p, c.preProcessorFunc, c.postProcessorFunc), nil
+
+	case *LogStep:
+		p := newLogProcessor(t.StepName(), t.Msg, t.Level, c.logger)
 		return decorateProcessor(p, c.preProcessorFunc, c.postProcessorFunc), nil
 	}
 

@@ -198,3 +198,12 @@ func (e *Exchange) MessagePath() []string {
 	}
 	return path
 }
+
+func (e *Exchange) asMap() map[string]any {
+	return map[string]any{
+		"body":       e.Message().Body,
+		"headers":    e.Message().Headers().All(),
+		"error":      e.Error(),
+		"properties": e.Properties().All(),
+	}
+}
