@@ -31,7 +31,7 @@ func (p *choiceProcessor) getId() string {
 	return p.id
 }
 
-func (p *choiceProcessor) addWhen(predicate Expr, processor Processor) *choiceProcessor {
+func (p *choiceProcessor) addWhen(predicate expression, processor Processor) *choiceProcessor {
 	if predicate == nil {
 		panic(fmt.Errorf("camel: choice: when: predicate must be not nil"))
 	}

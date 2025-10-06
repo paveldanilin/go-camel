@@ -4,15 +4,15 @@ package camel
 type setHeaderProcessor struct {
 	id string
 
-	name  string
-	value Expr
+	name            string
+	valueExpression expression
 }
 
-func newSetHeaderProcessor(id, name string, value Expr) *setHeaderProcessor {
+func newSetHeaderProcessor(id, name string, valueExpression expression) *setHeaderProcessor {
 	return &setHeaderProcessor{
-		id:    id,
-		name:  name,
-		value: value,
+		id:              id,
+		name:            name,
+		valueExpression: valueExpression,
 	}
 }
 
@@ -21,7 +21,7 @@ func (p *setHeaderProcessor) getId() string {
 }
 
 func (p *setHeaderProcessor) Process(exchange *Exchange) {
-	value, err := p.value.Eval(exchange)
+	value, err := p.valueExpression.eval(exchange)
 	if err != nil {
 		exchange.SetError(err)
 		return

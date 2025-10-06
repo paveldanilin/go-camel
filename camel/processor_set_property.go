@@ -4,15 +4,15 @@ package camel
 type setPropertyProcessor struct {
 	id string
 
-	name  string
-	value Expr
+	name            string
+	valueExpression expression
 }
 
-func newSetPropertyProcessor(id, name string, value Expr) *setPropertyProcessor {
+func newSetPropertyProcessor(id, name string, valueExpression expression) *setPropertyProcessor {
 	return &setPropertyProcessor{
-		id:    id,
-		name:  name,
-		value: value,
+		id:              id,
+		name:            name,
+		valueExpression: valueExpression,
 	}
 }
 
@@ -21,7 +21,7 @@ func (p *setPropertyProcessor) getId() string {
 }
 
 func (p *setPropertyProcessor) Process(exchange *Exchange) {
-	value, err := p.value.Eval(exchange)
+	value, err := p.valueExpression.eval(exchange)
 	if err != nil {
 		exchange.SetError(err)
 		return

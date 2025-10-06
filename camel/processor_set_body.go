@@ -2,14 +2,14 @@ package camel
 
 // setBodyProcessor sets a camel.Message body
 type setBodyProcessor struct {
-	id    string
-	value Expr
+	id              string
+	valueExpression expression
 }
 
-func newSetBodyProcessor(id string, value Expr) *setBodyProcessor {
+func newSetBodyProcessor(id string, valueExpression expression) *setBodyProcessor {
 	return &setBodyProcessor{
-		id:    id,
-		value: value,
+		id:              id,
+		valueExpression: valueExpression,
 	}
 }
 
@@ -18,7 +18,7 @@ func (p *setBodyProcessor) getId() string {
 }
 
 func (p *setBodyProcessor) Process(exchange *Exchange) {
-	value, err := p.value.Eval(exchange)
+	value, err := p.valueExpression.eval(exchange)
 	if err != nil {
 		exchange.SetError(err)
 		return

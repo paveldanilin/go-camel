@@ -79,7 +79,7 @@ type loopWhileProcessor struct {
 	processors []Processor
 }
 
-func newLoopWhileProcessor(id string, predicate Expr) *loopWhileProcessor {
+func newLoopWhileProcessor(id string, predicate expression) *loopWhileProcessor {
 	if predicate == nil {
 		panic(fmt.Errorf("camel: processor: LoopWhile predicate cannot be nil"))
 	}

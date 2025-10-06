@@ -7,10 +7,10 @@ import (
 	"strconv"
 )
 
-// Expr represents an expression that takes Exchange and returns computed value or error.
-// Used to dynamically compute value to setBodyProcessor/setHeaderProcessor.
-type Expr interface {
-	Eval(exchange *Exchange) (any, error)
+// expression represents an expression that takes Exchange and returns computed valueExpression or error.
+// Used to dynamically compute valueExpression to setBodyProcessor/setHeaderProcessor.
+type expression interface {
+	eval(exchange *Exchange) (any, error)
 }
 
 // constExpr represents a constant value.
@@ -24,14 +24,14 @@ func newConstExpr(value any) *constExpr {
 	}
 }
 
-func (e *constExpr) Eval(_ *Exchange) (any, error) {
+func (e *constExpr) eval(_ *Exchange) (any, error) {
 	return e.value, nil
 }
 
-// funcExpr represents a user function that returns value.
+// funcExpr represents a user function that returns valueExpression.
 type funcExpr func(exchange *Exchange) (any, error)
 
-func (fn funcExpr) Eval(exchange *Exchange) (any, error) {
+func (fn funcExpr) eval(exchange *Exchange) (any, error) {
 	return fn(exchange)
 }
 
@@ -65,7 +65,7 @@ func mustSimpleExpr(e string) *simpleExpr {
 	return expr_
 }
 
-func (e *simpleExpr) Eval(exchange *Exchange) (any, error) {
+func (e *simpleExpr) eval(exchange *Exchange) (any, error) {
 	return expr.Run(e.program, exchange.asMap())
 }
 
@@ -83,9 +83,9 @@ func (prd PredicateFunc) Test(exchange *Exchange) (bool, error) {
 	return prd(exchange)
 }
 
-func newPredicateFromExpr(expr Expr) PredicateFunc {
+func newPredicateFromExpr(expr expression) PredicateFunc {
 	return func(exchange *Exchange) (bool, error) {
-		v, err := expr.Eval(exchange)
+		v, err := expr.eval(exchange)
 		if err != nil {
 			return false, err
 		}

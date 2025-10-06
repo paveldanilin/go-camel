@@ -9,21 +9,21 @@ import (
 type compilerConfig struct {
 	funcRegistry       FuncRegistry
 	dataFormatRegistry DataFormatRegistry
+	logger             Logger
 	preProcessorFunc   func(exchange *Exchange)
 	postProcessorFunc  func(exchange *Exchange)
-	logger             Logger
 }
 
 // compileRoute takes Route and returns runtime representation of route.
-func compileRoute(c compilerConfig, r *Route) (*route, error) {
-	producer, err := compileRouteStep(c, r.Steps...)
+func compileRoute(c compilerConfig, routeDefinition *Route) (*route, error) {
+	producer, err := compileRouteStep(c, routeDefinition.Steps...)
 	if err != nil {
 		return nil, err
 	}
 
 	return &route{
-		name:     r.Name,
-		from:     r.From,
+		name:     routeDefinition.Name,
+		from:     routeDefinition.From,
 		producer: producer,
 	}, nil
 }
@@ -171,36 +171,36 @@ func compileRouteStep(c compilerConfig, s ...RouteStep) (Processor, error) {
 	return nil, fmt.Errorf("unknown route step: %T", s[0])
 }
 
-func compileExpr(expression Expression) Expr {
-	switch expression.Language {
+func compileExpr(expressionDefinition Expression) expression {
+	switch expressionDefinition.Language {
 	case "simple":
-		s, err := newSimpleExpr(expression.Expression)
+		s, err := newSimpleExpr(expressionDefinition.Expression)
 		if err != nil {
 			panic(fmt.Errorf("camel: expression: simple: %w", err))
 		}
 		return s
 	case "constant":
-		return newConstExpr(expression.Value)
+		return newConstExpr(expressionDefinition.Value)
 	}
 
-	panic(fmt.Errorf("camel: expression: unknown language: %s", expression.Language))
+	panic(fmt.Errorf("camel: expression: unknown language: %s", expressionDefinition.Language))
 }
 
-func compileErrMatcher(matcher ErrorMatcher) errorMatcher {
-	if strings.TrimSpace(matcher.Target) == "*" || strings.TrimSpace(matcher.Target) == "" {
+func compileErrMatcher(matcherDefinition ErrorMatcher) errorMatcher {
+	if strings.TrimSpace(matcherDefinition.Target) == "*" || strings.TrimSpace(matcherDefinition.Target) == "" {
 		return errorAny()
 	}
 
-	switch matcher.MatchMode {
+	switch matcherDefinition.MatchMode {
 	case ErrorMatchModeIs:
-		return errorIs(matcher.Target)
+		return errorIs(matcherDefinition.Target)
 	case ErrorMatchModeContains:
-		return errorContains(matcher.Target)
+		return errorContains(matcherDefinition.Target)
 	case ErrorMatchModeEquals:
-		return errorEquals(matcher.Target)
+		return errorEquals(matcherDefinition.Target)
 	case ErrorMatchModeRegex:
-		return errorMatches(matcher.Target)
+		return errorMatches(matcherDefinition.Target)
 	}
 
-	panic(fmt.Errorf("camel: error matcher: unknown mode: %s", matcher.MatchMode))
+	panic(fmt.Errorf("camel: error matcher: unknown mode: %s", matcherDefinition.MatchMode))
 }

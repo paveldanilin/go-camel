@@ -68,12 +68,12 @@ func (m *Message) Copy() *Message {
 	}
 }
 
-// Copier allows user types provide its own implementation for copying value
+// Copier allows user types provide its own implementation for copying valueExpression
 type Copier interface {
 	Copy() any
 }
 
-// copyValue tries to copy the given value, used for Message.Body copy
+// copyValue tries to copy the given valueExpression, used for Message.Body copy
 func copyValue(v any) any {
 	if v == nil {
 		return nil
@@ -92,7 +92,7 @@ func copyValue(v any) any {
 		return x // immutable
 
 	case time.Time:
-		return x // by value
+		return x // by valueExpression
 
 	case error:
 		return x
