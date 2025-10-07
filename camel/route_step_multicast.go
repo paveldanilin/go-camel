@@ -46,11 +46,6 @@ type MulticastStepBuilder struct {
 	multicastStep *MulticastStep
 }
 
-func (mb *MulticastStepBuilder) StepName(stepName string) *MulticastStepBuilder {
-	mb.multicastStep.Name = stepName
-	return mb
-}
-
 func (mb *MulticastStepBuilder) ParallelProcessing() *MulticastStepBuilder {
 	mb.multicastStep.Parallel = true
 	return mb
@@ -95,12 +90,13 @@ func (mb *MulticastStepBuilder) EndMulticast() *RouteBuilder {
 // RouteBuilder :: Multicast
 // ---------------------------------------------------------------------------------------------------------------------
 
-func (b *RouteBuilder) Multicast() *MulticastStepBuilder {
+func (b *RouteBuilder) Multicast(stepName string) *MulticastStepBuilder {
 	if b.err != nil {
 		return &MulticastStepBuilder{builder: b}
 	}
 
 	multicastStep := &MulticastStep{
+		Name:        stepName,
 		Parallel:    false,
 		StopOnError: false,
 	}

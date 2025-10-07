@@ -29,6 +29,10 @@ func (m Map) All() map[string]any {
 	return m
 }
 
+func (m Map) Remove(name string) {
+	delete(m, name)
+}
+
 func (m Map) Copy() Map {
 	if m == nil {
 		return nil

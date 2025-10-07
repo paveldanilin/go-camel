@@ -51,6 +51,10 @@ func (m *Message) MustHeader(name string) any {
 	panic("camel: message header not found: '" + name + "'")
 }
 
+func (m *Message) RemoveHeader(name string) {
+	m.headers.Remove(name)
+}
+
 func (m *Message) Copy() *Message {
 	if m == nil {
 		return nil

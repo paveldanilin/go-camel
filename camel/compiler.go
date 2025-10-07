@@ -166,6 +166,14 @@ func createProcessor(c compilerConfig, routeName string, s ...RouteStep) (Proces
 	case *LogStep:
 		p := newLogProcessor(routeName, t.StepName(), t.Msg, t.Level, c.logger)
 		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+
+	case *RemoveHeaderStep:
+		p := newRemoveHeaderProcessor(t.StepName(), t.HeaderName)
+		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+
+	case *RemovePropertyStep:
+		p := newRemovePropertyProcessor(t.StepName(), t.PropertyName)
+		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
 	}
 
 	return nil, fmt.Errorf("unknown route step: %T", s[0])
@@ -174,13 +182,13 @@ func createProcessor(c compilerConfig, routeName string, s ...RouteStep) (Proces
 func createExpression(expressionDefinition Expression) expression {
 	switch expressionDefinition.Language {
 	case "simple":
-		se, err := newSimpleExpression(expressionDefinition.Expression)
+		se, err := newSimpleExpression(expressionDefinition.Expression.(string))
 		if err != nil {
 			panic(fmt.Errorf("camel: expression: simple: %w", err))
 		}
 		return se
 	case "constant":
-		return newConstExpression(expressionDefinition.Value)
+		return newConstExpression(expressionDefinition.Expression)
 	}
 
 	panic(fmt.Errorf("camel: expression: unknown language: %s", expressionDefinition.Language))

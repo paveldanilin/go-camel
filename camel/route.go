@@ -156,8 +156,7 @@ func walkSteps(steps []RouteStep, depth int, visitor StepVisitorFunc) error {
 
 type Expression struct {
 	Language   string // "simple", "constant",...
-	Expression string // Language != "constant"
-	Value      any
+	Expression any    // 'string' for simple, 'any' for constant
 }
 
 func Simple(expression string) Expression {
@@ -169,7 +168,7 @@ func Simple(expression string) Expression {
 
 func Constant(value any) Expression {
 	return Expression{
-		Language: "constant",
-		Value:    value,
+		Language:   "constant",
+		Expression: value,
 	}
 }

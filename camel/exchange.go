@@ -122,6 +122,10 @@ func (e *Exchange) SetProperty(name string, value any) {
 	e.properties.Set(name, value)
 }
 
+func (e *Exchange) RemoveProperty(name string) {
+	e.properties.Remove(name)
+}
+
 func (e *Exchange) Message() *Message {
 	return e.message
 }

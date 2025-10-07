@@ -40,7 +40,7 @@ func main() {
 			b.SetBody("xxx", camel.Simple("'>>' + error.Error() + '<<'"))
 		}).
 		EndTry().
-		Multicast().ParallelProcessing().
+		Multicast("multi tasks").ParallelProcessing().
 		Output(func(b *camel.RouteBuilder) {
 			b.Sleep("", 15000)
 			b.LogWarn("", "xxx> ${body}")

@@ -10,7 +10,7 @@ type SetHeaderStep struct {
 
 func (s *SetHeaderStep) StepName() string {
 	if s.Name == "" {
-		return fmt.Sprintf("setHeader[%s]={%s:%s}", s.HeaderName, s.HeaderValue.Language, s.HeaderValue.Value)
+		return fmt.Sprintf("setHeader[%s]={%s:%v}", s.HeaderName, s.HeaderValue.Language, s.HeaderValue.Expression)
 	}
 	return s.Name
 }

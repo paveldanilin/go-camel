@@ -10,7 +10,7 @@ type SetPropertyStep struct {
 
 func (s *SetPropertyStep) StepName() string {
 	if s.Name == "" {
-		return fmt.Sprintf("setProperty[%s]={%s:%s}", s.PropertyName, s.PropertyValue.Language, s.PropertyValue.Value)
+		return fmt.Sprintf("setProperty[%s]={%s:%v}", s.PropertyName, s.PropertyValue.Language, s.PropertyValue.Expression)
 	}
 	return s.Name
 }
