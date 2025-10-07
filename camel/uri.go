@@ -127,7 +127,7 @@ func (u *URI) String() string {
 	return u.rawUri
 }
 
-type ParseOptions struct {
+type URIParseOptions struct {
 	// If TRUE - takes the last key.
 	// Default: true
 	LastWins bool
@@ -136,12 +136,12 @@ type ParseOptions struct {
 	MetaPrefix string
 }
 
-func Parse(uri string, opts *ParseOptions) (*URI, error) {
+func ParseURI(uri string, opts *URIParseOptions) (*URI, error) {
 	if opts == nil {
-		opts = &ParseOptions{LastWins: true, MetaPrefix: "_"}
+		opts = &URIParseOptions{LastWins: true, MetaPrefix: "_"}
 	}
 
-	parsed, err := parse(uri, opts)
+	parsed, err := parseURI(uri, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -179,13 +179,13 @@ func Parse(uri string, opts *ParseOptions) (*URI, error) {
 	return u, nil
 }
 
-// parse decodes Camel-like URI and returns map[string]string.
+// parseURI decodes Camel-like URI and returns map[string]string.
 // Input examples:
 //   - "timer:foo?period=1000"
 //   - "kafka:topic?brokers=localhost:9092&acks=all"
 //   - "file:/var/log?recursive=true"
 //   - "http://user:pass@host:8080/a/b?x=1#frag"
-func parse(uri string, opts *ParseOptions) (map[string]string, error) {
+func parseURI(uri string, opts *URIParseOptions) (map[string]string, error) {
 	if opts.MetaPrefix == "" {
 		opts.MetaPrefix = "_"
 	}
@@ -215,9 +215,9 @@ func parse(uri string, opts *ParseOptions) (map[string]string, error) {
 			meta("path", ssp)
 		}
 		if query == "" {
-			parseQueryInto(out, u.RawQuery, opts.LastWins)
+			parseURIQueryInto(out, u.RawQuery, opts.LastWins)
 		} else {
-			parseQueryInto(out, query, opts.LastWins)
+			parseURIQueryInto(out, query, opts.LastWins)
 		}
 		return out, nil
 	}
@@ -242,13 +242,13 @@ func parse(uri string, opts *ParseOptions) (map[string]string, error) {
 		meta("fragment", frag)
 	}
 	if u.RawQuery != "" {
-		parseQueryInto(out, u.RawQuery, opts.LastWins)
+		parseURIQueryInto(out, u.RawQuery, opts.LastWins)
 	}
 
 	return out, nil
 }
 
-func parseQueryInto(out map[string]string, rawQuery string, lastWins bool) {
+func parseURIQueryInto(out map[string]string, rawQuery string, lastWins bool) {
 	values, err := url.ParseQuery(rawQuery)
 
 	if err != nil {

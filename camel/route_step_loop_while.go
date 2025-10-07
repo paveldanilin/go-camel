@@ -16,6 +16,10 @@ func (s *LoopWhileStep) StepName() string {
 	return s.Name
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// RouteBuilder :: LoopWhile
+// ---------------------------------------------------------------------------------------------------------------------
+
 func (b *RouteBuilder) LoopWhile(stepName string, predicate Expression, copyExchange bool, configure func(b *RouteBuilder)) *RouteBuilder {
 	if b.err != nil {
 		return b

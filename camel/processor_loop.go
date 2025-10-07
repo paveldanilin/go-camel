@@ -85,7 +85,7 @@ func newLoopWhileProcessor(id string, predicate expression) *loopWhileProcessor 
 	}
 	return &loopWhileProcessor{
 		id:         id,
-		predicate:  newPredicateFromExpr(predicate),
+		predicate:  newPredicateFromExpression(predicate),
 		processors: []Processor{},
 		copy:       true,
 	}

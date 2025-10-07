@@ -2,19 +2,19 @@ package camel
 
 // setErrorProcessor sets a camel.Exchange error
 type setErrorProcessor struct {
-	id  string
-	err error
+	name string
+	err  error
 }
 
-func newSetErrorProcessor(id string, err error) *setErrorProcessor {
+func newSetErrorProcessor(name string, err error) *setErrorProcessor {
 	return &setErrorProcessor{
-		id:  id,
-		err: err,
+		name: name,
+		err:  err,
 	}
 }
 
-func (p *setErrorProcessor) getId() string {
-	return p.id
+func (p *setErrorProcessor) getName() string {
+	return p.name
 }
 
 func (p *setErrorProcessor) Process(exchange *Exchange) {

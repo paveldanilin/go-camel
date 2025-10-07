@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/paveldanilin/go-camel/dataformat"
 	"log/slog"
 	"os"
 	"sync"
@@ -45,7 +46,8 @@ type route struct {
 }
 
 type Runtime struct {
-	mu sync.RWMutex
+	name string
+	mu   sync.RWMutex
 
 	funcRegistry       FuncRegistry
 	componentRegistry  ComponentRegistry
@@ -63,6 +65,7 @@ type Runtime struct {
 }
 
 type RuntimeConfig struct {
+	Name               string
 	ExchangeFactory    ExchangeFactory
 	FuncRegistry       FuncRegistry
 	ComponentRegistry  ComponentRegistry
@@ -74,6 +77,7 @@ func NewRuntime(config RuntimeConfig) *Runtime {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	runtime := &Runtime{
+		name:               config.Name,
 		funcRegistry:       config.FuncRegistry,
 		componentRegistry:  config.ComponentRegistry,
 		dataFormatRegistry: config.DataFormatRegistry,
@@ -88,20 +92,33 @@ func NewRuntime(config RuntimeConfig) *Runtime {
 		cancel: cancel,
 	}
 
+	if runtime.name == "" {
+		runtime.name = "CamelRuntime"
+	}
+	//runtime.ctx = context.WithValue(runtime.ctx, "CamelRuntimeName", runtime.headerName)
+
 	if runtime.funcRegistry == nil {
 		runtime.funcRegistry = newFuncRegistry()
 	}
 	if runtime.componentRegistry == nil {
 		runtime.componentRegistry = newComponentRegistry()
 	}
+
+	// register default DataFormat registry
 	if runtime.dataFormatRegistry == nil {
 		runtime.dataFormatRegistry = newDataFormatRegistry()
+		runtime.dataFormatRegistry.RegisterDataFormat("json", dataformat.JSONFormat{})
+		runtime.dataFormatRegistry.RegisterDataFormat("xml", dataformat.XMLFormat{})
 	}
 	if runtime.logger == nil {
 		runtime.logger = NewSlogLogger(slog.New(slog.NewTextHandler(os.Stdout, nil)), LogLevelInfo)
 	}
 
 	return runtime
+}
+
+func (rt *Runtime) Name() string {
+	return rt.name
 }
 
 // RegisterFunc registers a named func in the current Runtime.
@@ -152,21 +169,24 @@ func (rt *Runtime) MustRegisterDataFormat(name string, dataFormat DataFormat) {
 
 func (rt *Runtime) RegisterRoute(routeDefinition *Route) error {
 	if _, exists := rt.routes[routeDefinition.Name]; exists {
+		rt.logger.Error(context.Background(), fmt.Sprintf("Route with headerName '%s' already registered", routeDefinition.Name))
 		return errors.New("route already registered: " + routeDefinition.Name)
 	}
 
 	r, err := compileRoute(compilerConfig{
 		funcRegistry:       rt.funcRegistry,
-		preProcessorFunc:   rt.preProcessor,
-		postProcessorFunc:  rt.postProcessor,
 		logger:             rt.logger,
 		dataFormatRegistry: rt.dataFormatRegistry,
+		preProcessor:       rt.preProcessor,
+		postProcessor:      rt.postProcessor,
 	}, routeDefinition)
 	if err != nil {
+		rt.logger.Error(context.Background(), "Route compilation failed", slog.String("error", err.Error()))
 		return err
 	}
 
 	rt.routes[routeDefinition.Name] = r
+	rt.logger.Info(context.Background(), fmt.Sprintf("Route '%s' registered and consuming from: '%s'", routeDefinition.Name, routeDefinition.From))
 
 	return nil
 }
@@ -220,7 +240,6 @@ func (rt *Runtime) Send(ctx context.Context, uri string, body any, headers map[s
 	}
 
 	exchange := rt.NewExchange(ctx)
-	//exchange.SetProperty("CAMEL_ROUTE_NAME", "")
 	exchange.message.Body = body
 	exchange.message.headers.SetAll(headers)
 
@@ -255,7 +274,6 @@ func (rt *Runtime) Route(routeId string) *route {
 	if r, exists := rt.routes[routeId]; exists {
 		return r
 	}
-
 	return nil
 }
 
@@ -263,33 +281,32 @@ func (rt *Runtime) Start() error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 
-	for _, route := range rt.routes {
-
-		fromUri, err := Parse(route.from, nil)
+	for _, r := range rt.routes {
+		fromUri, err := ParseURI(r.from, nil)
 		if err != nil {
-			return fmt.Errorf("invalid URI format in route '%s' that consumes from '%s': %w", route.name, route.from, err)
+			return fmt.Errorf("invalid URI format in route '%s' that consumes from '%s': %w", r.name, r.from, err)
 		}
 
 		// Resolve component
 		component := rt.componentRegistry.Component(fromUri.Component())
 		if component == nil {
-			return fmt.Errorf("component '%s' not found in route '%s' that consumes from '%s'", fromUri.Component(), route.name, route.from)
+			return fmt.Errorf("component '%s' not found in route '%s' that consumes from '%s'", fromUri.Component(), r.name, r.from)
 		}
 
 		// Resolve/create endpoint
-		endpoint, endpointExists := rt.endpoints[route.from]
+		endpoint, endpointExists := rt.endpoints[r.from]
 		if !endpointExists {
-			endpoint, err = component.CreateEndpoint(route.from)
+			endpoint, err = component.CreateEndpoint(r.from)
 			if err != nil {
-				return fmt.Errorf("failed to create endpoint in route '%s' that consumes from '%s': %w", route.name, route.from, err)
+				return fmt.Errorf("failed to create endpoint in route '%s' that consumes from '%s': %w", r.name, r.from, err)
 			}
-			rt.endpoints[route.from] = endpoint
+			rt.endpoints[r.from] = endpoint
 		}
 
 		// Create consumer
-		consumer, err := endpoint.CreateConsumer(route.producer)
+		consumer, err := endpoint.CreateConsumer(r.producer)
 		if err != nil {
-			return fmt.Errorf("failed to create consumer in route '%s' that consumes from '%s': %w", route.name, route.from, err)
+			return fmt.Errorf("failed to create consumer in route '%s' that consumes from '%s': %w", r.name, r.from, err)
 		}
 		rt.consumers = append(rt.consumers, consumer)
 	}
@@ -300,6 +317,8 @@ func (rt *Runtime) Start() error {
 			return err
 		}
 	}
+
+	rt.logger.Info(context.Background(), fmt.Sprintf("Camel runtime '%s' started", rt.name))
 
 	return nil
 }
@@ -318,8 +337,9 @@ func (rt *Runtime) Stop() error {
 
 	rt.consumers = nil
 	rt.endpoints = nil
-	//rt.components = nil
 	rt.routes = nil
+
+	rt.logger.Info(context.Background(), fmt.Sprintf("Camel runetime '%s' stopped", rt.name))
 
 	return nil
 }

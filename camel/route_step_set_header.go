@@ -15,6 +15,10 @@ func (s *SetHeaderStep) StepName() string {
 	return s.Name
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// RouteBuilder :: SetHeader
+// ---------------------------------------------------------------------------------------------------------------------
+
 // SetHeader adds steps to set message header.
 func (b *RouteBuilder) SetHeader(stepName, headerName string, headerValue Expression) *RouteBuilder {
 	if b.err != nil {

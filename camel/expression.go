@@ -13,35 +13,35 @@ type expression interface {
 	eval(exchange *Exchange) (any, error)
 }
 
-// constExpr represents a constant value.
-type constExpr struct {
+// constExpression represents a constant value.
+type constExpression struct {
 	value any
 }
 
-func newConstExpr(value any) *constExpr {
-	return &constExpr{
+func newConstExpression(value any) *constExpression {
+	return &constExpression{
 		value: value,
 	}
 }
 
-func (e *constExpr) eval(_ *Exchange) (any, error) {
+func (e *constExpression) eval(_ *Exchange) (any, error) {
 	return e.value, nil
 }
 
-// funcExpr represents a user function that returns valueExpression.
-type funcExpr func(exchange *Exchange) (any, error)
+// funcExpression represents a user function that returns valueExpression.
+type funcExpression func(exchange *Exchange) (any, error)
 
-func (fn funcExpr) eval(exchange *Exchange) (any, error) {
+func (fn funcExpression) eval(exchange *Exchange) (any, error) {
 	return fn(exchange)
 }
 
-// simpleExpr is a wrapper for https://expr-lang.org/docs/getting-started
-type simpleExpr struct {
-	rawExpr string
+// simpleExpression is a wrapper for https://expr-lang.org/docs/getting-started
+type simpleExpression struct {
+	raw     string
 	program *vm.Program
 }
 
-func newSimpleExpr(e string) (*simpleExpr, error) {
+func newSimpleExpression(e string) (*simpleExpression, error) {
 	program, err := expr.Compile(e,
 		expr.AllowUndefinedVariables(),
 		expr.Optimize(true),
@@ -50,14 +50,14 @@ func newSimpleExpr(e string) (*simpleExpr, error) {
 		return nil, err
 	}
 
-	return &simpleExpr{
-		rawExpr: e,
+	return &simpleExpression{
+		raw:     e,
 		program: program,
 	}, nil
 }
 
-func mustSimpleExpr(e string) *simpleExpr {
-	expr_, err := newSimpleExpr(e)
+func mustSimpleExpression(e string) *simpleExpression {
+	expr_, err := newSimpleExpression(e)
 	if err != nil {
 		panic(fmt.Errorf("camel: expr: simple: %w", err))
 	}
@@ -65,12 +65,12 @@ func mustSimpleExpr(e string) *simpleExpr {
 	return expr_
 }
 
-func (e *simpleExpr) eval(exchange *Exchange) (any, error) {
+func (e *simpleExpression) eval(exchange *Exchange) (any, error) {
 	return expr.Run(e.program, exchange.asMap())
 }
 
-func (e *simpleExpr) String() string {
-	return e.rawExpr
+func (e *simpleExpression) String() string {
+	return e.raw
 }
 
 type Predicate interface {
@@ -83,7 +83,7 @@ func (prd PredicateFunc) Test(exchange *Exchange) (bool, error) {
 	return prd(exchange)
 }
 
-func newPredicateFromExpr(expr expression) PredicateFunc {
+func newPredicateFromExpression(expr expression) PredicateFunc {
 	return func(exchange *Exchange) (bool, error) {
 		v, err := expr.eval(exchange)
 		if err != nil {

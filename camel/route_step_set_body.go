@@ -14,6 +14,10 @@ func (s *SetBodyStep) StepName() string {
 	return s.Name
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// RouteBuilder :: SetBody
+// ---------------------------------------------------------------------------------------------------------------------
+
 // SetBody adds step to set the message body.
 func (b *RouteBuilder) SetBody(stepName string, bodyValue Expression) *RouteBuilder {
 	if b.err != nil {

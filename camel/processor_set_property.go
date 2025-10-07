@@ -2,22 +2,22 @@ package camel
 
 // setPropertyProcessor sets Exchange's property
 type setPropertyProcessor struct {
-	id string
+	name string
 
-	name            string
+	propertyName    string
 	valueExpression expression
 }
 
-func newSetPropertyProcessor(id, name string, valueExpression expression) *setPropertyProcessor {
+func newSetPropertyProcessor(name, propertyName string, valueExpression expression) *setPropertyProcessor {
 	return &setPropertyProcessor{
-		id:              id,
 		name:            name,
+		propertyName:    propertyName,
 		valueExpression: valueExpression,
 	}
 }
 
-func (p *setPropertyProcessor) getId() string {
-	return p.id
+func (p *setPropertyProcessor) getName() string {
+	return p.name
 }
 
 func (p *setPropertyProcessor) Process(exchange *Exchange) {
@@ -27,5 +27,5 @@ func (p *setPropertyProcessor) Process(exchange *Exchange) {
 		return
 	}
 
-	exchange.SetProperty(p.name, value)
+	exchange.SetProperty(p.propertyName, value)
 }

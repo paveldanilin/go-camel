@@ -15,7 +15,11 @@ func (s *SetPropertyStep) StepName() string {
 	return s.Name
 }
 
-// SetProperty adds step to set a exchange property.
+// ---------------------------------------------------------------------------------------------------------------------
+// RouteBuilder :: SetProperty
+// ---------------------------------------------------------------------------------------------------------------------
+
+// SetProperty adds step to set an exchange property.
 func (b *RouteBuilder) SetProperty(stepName, propertyName string, propertyValue Expression) *RouteBuilder {
 	if b.err != nil {
 		return b

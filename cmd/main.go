@@ -27,7 +27,7 @@ func main() {
 		SetBody("calc sum", camel.Simple("headers.a + headers.b")).
 		Choice("test sum result").
 		When(camel.Simple("body == 40"), func(b *camel.RouteBuilder) {
-			b.Sleep(2500)
+			b.Sleep("", 2500)
 			b.SetBody("double body value", camel.Simple("body * 2"))
 		}).
 		Otherwise(func(b *camel.RouteBuilder) {
@@ -42,15 +42,13 @@ func main() {
 		EndTry().
 		Multicast().ParallelProcessing().
 		Output(func(b *camel.RouteBuilder) {
-			// TODO: worker1
-			b.Sleep(15000)
-			b.LogWithBuilder().Msg("xxx> ${body}").Level(camel.LogLevelWarn)
+			b.Sleep("", 15000)
+			b.LogWarn("", "xxx> ${body}")
 		}).
 		Output(func(b *camel.RouteBuilder) {
-			// TODO: worker2
-			b.Sleep(5000)
+			b.Sleep("", 5000)
 			b.SetProperty("setGame", "game", camel.Constant("DooM"))
-			b.Log("yy>>${body}>>${properties.game}")
+			b.LogInfo("", "yy>>${body}>>${properties.game}")
 		}).
 		EndMulticast().
 		Build()
@@ -58,11 +56,11 @@ func main() {
 		panic(err)
 	}
 
-	getDepth := func(step camel.RouteStep, depth int) error {
+	/*getDepth := func(step camel.RouteStep, depth int) error {
 		fmt.Printf("%s> %s [%T]\n", strings.Repeat("-", depth+1), step.StepName(), step)
 		return nil
 	}
-	_ = camel.WalkRoute(r, getDepth)
+	_ = camel.WalkRoute(r, getDepth)*/
 
 	camelRuntime.MustRegisterRoute(r)
 

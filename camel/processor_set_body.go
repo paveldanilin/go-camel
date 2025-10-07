@@ -2,19 +2,19 @@ package camel
 
 // setBodyProcessor sets a camel.Message body
 type setBodyProcessor struct {
-	id              string
+	name            string
 	valueExpression expression
 }
 
-func newSetBodyProcessor(id string, valueExpression expression) *setBodyProcessor {
+func newSetBodyProcessor(name string, valueExpression expression) *setBodyProcessor {
 	return &setBodyProcessor{
-		id:              id,
+		name:            name,
 		valueExpression: valueExpression,
 	}
 }
 
-func (p *setBodyProcessor) getId() string {
-	return p.id
+func (p *setBodyProcessor) getName() string {
+	return p.name
 }
 
 func (p *setBodyProcessor) Process(exchange *Exchange) {

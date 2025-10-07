@@ -5,23 +5,25 @@ import (
 )
 
 type logProcessor struct {
-	id string
+	routeName string
+	name      string
 
 	// msg represents a templated message
 	msg   string
 	level LogLevel
 
-	// will be used if msg contains variables like: ${var_name} or ${person.name} or ${person.products[0].id}.
+	// will be used if msg contains variables like: ${var_name} or ${person.headerName} or ${person.products[0].headerName}.
 	tpl    *template.Template
 	logger Logger
 }
 
-func newLogProcessor(id, msg string, level LogLevel, logger Logger) *logProcessor {
+func newLogProcessor(routeName, name, msg string, level LogLevel, logger Logger) *logProcessor {
 	p := &logProcessor{
-		id:     id,
-		msg:    msg,
-		level:  level,
-		logger: logger,
+		routeName: routeName,
+		name:      name,
+		msg:       msg,
+		level:     level,
+		logger:    logger,
 	}
 	if template.HasVars(msg) {
 		t, err := template.Parse(msg)
@@ -32,6 +34,10 @@ func newLogProcessor(id, msg string, level LogLevel, logger Logger) *logProcesso
 		p.tpl = t
 	}
 	return p
+}
+
+func (p *logProcessor) getName() string {
+	return p.name
 }
 
 func (p *logProcessor) Process(exchange *Exchange) {
@@ -47,5 +53,5 @@ func (p *logProcessor) Process(exchange *Exchange) {
 		return
 	}
 
-	p.logger.Log(exchange.ctx, p.level, msg)
+	p.logger.Log(exchange.ctx, p.level, msg, "route", p.routeName, "processor", p.name)
 }

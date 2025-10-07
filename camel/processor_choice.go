@@ -15,20 +15,20 @@ func (when *choiceWhen) match(exchange *Exchange) (bool, error) {
 }
 
 type choiceProcessor struct {
-	id        string
+	name      string
 	cases     []*choiceWhen
 	otherwise Processor
 }
 
-func newChoiceProcessor(id string) *choiceProcessor {
+func newChoiceProcessor(name string) *choiceProcessor {
 	return &choiceProcessor{
-		id:    id,
+		name:  name,
 		cases: []*choiceWhen{},
 	}
 }
 
-func (p *choiceProcessor) getId() string {
-	return p.id
+func (p *choiceProcessor) getName() string {
+	return p.name
 }
 
 func (p *choiceProcessor) addWhen(predicate expression, processor Processor) *choiceProcessor {
@@ -39,7 +39,7 @@ func (p *choiceProcessor) addWhen(predicate expression, processor Processor) *ch
 		panic(fmt.Errorf("camel: choice: when: processor must be not nil"))
 	}
 	p.cases = append(p.cases, &choiceWhen{
-		predicate: newPredicateFromExpr(predicate),
+		predicate: newPredicateFromExpression(predicate),
 		processor: processor,
 	})
 	return p

@@ -15,6 +15,10 @@ func (s *PipelineStep) StepName() string {
 	return s.Name
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// RouteBuilder :: Pipeline
+// ---------------------------------------------------------------------------------------------------------------------
+
 // Pipeline adds new pipeline.
 // Function configure will be called to configure PipelineStep.
 func (b *RouteBuilder) Pipeline(stepName string, stopOnError bool, configure func(b *RouteBuilder)) *RouteBuilder {
