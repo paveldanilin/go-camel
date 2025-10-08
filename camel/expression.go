@@ -36,6 +36,14 @@ func (fn funcExpression) eval(exchange *Exchange) (any, error) {
 }
 
 // simpleExpression is a wrapper for https://expr-lang.org/docs/getting-started
+// Variables (see Exchange.asMap):
+//
+//	 body:			the Message body
+//	 headers:		the Message headers (headers.foo refers to the Exchange header 'foo')
+//	 error:			the Exchange error
+//	 properties:		the Exchange properties (properties.foo refers to the Exchange property 'foo')
+//	 id:				the Message id
+//		exchangeId:		the Exchange id
 type simpleExpression struct {
 	raw     string
 	program *vm.Program

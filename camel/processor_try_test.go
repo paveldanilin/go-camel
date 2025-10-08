@@ -11,11 +11,11 @@ func TestDoTryProcessor_Error(t *testing.T) {
 	tryBlock := newTryProcessor("critical section").
 		addProcessor(newSetHeaderProcessor("set a", "a", newConstExpression(1))).
 		addProcessor(newSetHeaderProcessor("set b", "b", newConstExpression(1))).
-		addProcessor(newSetBodyProcessor("set body", mustSimpleExpression("header.a + header.b"))).
+		addProcessor(newSetBodyProcessor("set body", mustSimpleExpression("headers.a + headers.b"))).
 		addProcessor(newChoiceProcessor("test body").
 			addWhen(mustSimpleExpression("body == 2"), newSetErrorProcessor("", mandatoryParameterMissingErr)),
 		).
-		addCatch(errorContains("mandatory parameter missing"), newSetHeaderProcessor("", "ERROR", mustSimpleExpression("exchange.error"))).
+		addCatch(errorContains("mandatory parameter missing"), newSetHeaderProcessor("", "ERROR", mustSimpleExpression("error"))).
 		addFinally(newSetBodyProcessor("", newConstExpression("RESULT")))
 
 	exchange := NewExchange(nil, nil)

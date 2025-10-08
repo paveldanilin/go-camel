@@ -1,12 +1,11 @@
-package test
+package camel
 
 import (
-	uri2 "github.com/paveldanilin/go-camel/camel"
 	"testing"
 )
 
-func TestParseCamelStyle(t *testing.T) {
-	uri, err := uri2.ParseURI("timer:foo?period=1000", nil)
+func TestParseURI_CamelStyle(t *testing.T) {
+	uri, err := ParseURI("timer:foo?period=1000", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,8 +26,8 @@ func TestParseCamelStyle(t *testing.T) {
 	}
 }
 
-func TestParseCamelStyleMultiParams(t *testing.T) {
-	uri, err := uri2.ParseURI("kafka:topicA?brokers=localhost:9092&acks=all", nil)
+func TestParseURI_CamelStyleMultiParams(t *testing.T) {
+	uri, err := ParseURI("kafka:topicA?brokers=localhost:9092&acks=all", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,8 +48,8 @@ func TestParseCamelStyleMultiParams(t *testing.T) {
 	}
 }
 
-func TestParseCamelStyleFile(t *testing.T) {
-	uri, err := uri2.ParseURI("file:/var/log?recursive=true", nil)
+func TestParseURI_CamelStyleFile(t *testing.T) {
+	uri, err := ParseURI("file:/var/log?recursive=true", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,8 +70,8 @@ func TestParseCamelStyleFile(t *testing.T) {
 	}
 }
 
-func TestParseRegularURL(t *testing.T) {
-	uri, err := uri2.ParseURI("http://john:smith@222.111.222.111:8080/a/b?x=1#frag", nil)
+func TestParseURI_RegularURL(t *testing.T) {
+	uri, err := ParseURI("http://john:smith@222.111.222.111:8080/a/b?x=1#frag", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

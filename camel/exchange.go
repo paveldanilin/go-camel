@@ -205,6 +205,8 @@ func (e *Exchange) MessagePath() []string {
 
 func (e *Exchange) asMap() map[string]any {
 	return map[string]any{
+		"id":         e.Message().Id(),
+		"exchangeId": e.Id(),
 		"body":       e.Message().Body,
 		"headers":    e.Message().Headers().All(),
 		"error":      e.Error(),

@@ -4,8 +4,8 @@ import (
 	"testing"
 )
 
-func TestSimpleExpressionEq(t *testing.T) {
-	exprEq, err := newSimpleExpression("header.a == 1")
+func TestSimpleExpression_Eq(t *testing.T) {
+	e, err := newSimpleExpression("headers.a == 1")
 	if err != nil {
 		panic(err)
 	}
@@ -13,7 +13,7 @@ func TestSimpleExpressionEq(t *testing.T) {
 	m := NewExchange(nil, nil)
 	m.Message().SetHeader("a", 1)
 
-	ret, err := exprEq.eval(m)
+	ret, err := e.eval(m)
 	if err != nil {
 		panic(err)
 	}
