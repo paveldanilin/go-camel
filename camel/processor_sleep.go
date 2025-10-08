@@ -3,20 +3,20 @@ package camel
 import "time"
 
 type sleepProcessor struct {
-	id string
+	name string
 
 	duration int64
 }
 
-func newSleepProcessor(id string, dur int64) *sleepProcessor {
+func newSleepProcessor(name string, dur int64) *sleepProcessor {
 	return &sleepProcessor{
-		id:       id,
+		name:     name,
 		duration: dur,
 	}
 }
 
-func (p *sleepProcessor) getId() string {
-	return p.id
+func (p *sleepProcessor) getName() string {
+	return p.name
 }
 
 func (p *sleepProcessor) Process(_ *Exchange) {

@@ -17,7 +17,7 @@ func (c *Component) Id() string {
 }
 
 func (c *Component) CreateEndpoint(uri string) (camel.Endpoint, error) {
-	parsedUri, err := camel.Parse(uri, nil)
+	parsedUri, err := camel.ParseURI(uri, nil)
 	if err != nil {
 		return nil, err
 	}

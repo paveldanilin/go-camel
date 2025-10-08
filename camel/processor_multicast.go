@@ -7,16 +7,16 @@ type ExchangeAggregator interface {
 }
 
 type multicastProcessor struct {
-	id          string
+	name        string
 	parallel    bool
 	stopOnError bool
 	aggregator  ExchangeAggregator
 	outputs     []Processor // each output is a start of sub route
 }
 
-func newMulticastProcessor(id string, parallel, stopOnError bool, aggregator ExchangeAggregator) *multicastProcessor {
+func newMulticastProcessor(name string, parallel, stopOnError bool, aggregator ExchangeAggregator) *multicastProcessor {
 	return &multicastProcessor{
-		id:          id,
+		name:        name,
 		parallel:    parallel,
 		stopOnError: stopOnError,
 		aggregator:  aggregator,
@@ -24,8 +24,8 @@ func newMulticastProcessor(id string, parallel, stopOnError bool, aggregator Exc
 	}
 }
 
-func (p *multicastProcessor) getId() string {
-	return p.id
+func (p *multicastProcessor) getName() string {
+	return p.name
 }
 
 func (p *multicastProcessor) addOutput(processor Processor) {
@@ -81,9 +81,7 @@ func (p *multicastProcessor) parallelProcess(exchange *Exchange) {
 		}()
 	}
 
-	println("wait...")
 	wg.Wait()
-	println("resume...")
 
 	if p.aggregator != nil {
 		var oldExchange *Exchange = nil

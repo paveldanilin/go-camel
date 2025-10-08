@@ -5,20 +5,20 @@ import (
 )
 
 type toProcessor struct {
-	id string
+	name string
 
 	uri string
 }
 
-func newToProcessor(id, uri string) *toProcessor {
+func newToProcessor(name, uri string) *toProcessor {
 	return &toProcessor{
-		id:  id,
-		uri: uri,
+		name: name,
+		uri:  uri,
 	}
 }
 
-func (p *toProcessor) getId() string {
-	return p.id
+func (p *toProcessor) getName() string {
+	return p.name
 }
 
 func (p *toProcessor) Process(exchange *Exchange) {

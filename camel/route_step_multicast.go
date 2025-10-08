@@ -5,11 +5,11 @@ import (
 	"strings"
 )
 
-type Output struct {
+type MulticastOutput struct {
 	Steps []RouteStep
 }
 
-func (sr Output) StepName() string {
+func (sr MulticastOutput) StepName() string {
 	return "output"
 }
 
@@ -18,7 +18,7 @@ type MulticastStep struct {
 	Parallel    bool
 	StopOnError bool
 	Aggregator  ExchangeAggregator
-	Outputs     []Output
+	Outputs     []MulticastOutput
 }
 
 func (s *MulticastStep) StepName() string {
@@ -71,7 +71,7 @@ func (mb *MulticastStepBuilder) Output(configure func(b *RouteBuilder)) *Multica
 		return mb
 	}
 
-	subRoute := Output{Steps: []RouteStep{}}
+	subRoute := MulticastOutput{Steps: []RouteStep{}}
 
 	mb.builder.pushStack(&subRoute.Steps)
 	configure(mb.builder)

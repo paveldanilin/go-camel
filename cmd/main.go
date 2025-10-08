@@ -34,27 +34,21 @@ func main() {
 			b.SetBody("x*4", camel.Simple("body * 4"))
 		}).
 		Try("", func(b *camel.RouteBuilder) {
-			// Stored function (register it first RegistrFunc)
 			b.Func("x10", "x10Func")
 		}).
 		Catch(camel.ErrAny(), func(b *camel.RouteBuilder) {
 			b.SetBody("xxx", camel.Simple("'>>' + error.Error() + '<<'"))
 		}).
 		EndTry().
-		Multicast("parallel").ParallelProcessing().
+		Multicast("multi tasks").ParallelProcessing().
 		Output(func(b *camel.RouteBuilder) {
-			// TODO: worker1
-			b.Sleep("x1", 15000)
-			b.Func("xx", func(_ *camel.Exchange) {
-				println("xxxx")
-			})
+			b.Sleep("", 15000)
+			b.LogWarn("", "xxx> ${body}")
 		}).
 		Output(func(b *camel.RouteBuilder) {
-			// TODO: worker2
-			b.Sleep("x2", 5000)
-			b.Func("yy", func(_ *camel.Exchange) {
-				println("yyyy")
-			})
+			b.Sleep("", 5000)
+			b.SetProperty("setGame", "game", camel.Constant("DooM"))
+			b.LogInfo("", "yy>>${body}>>${properties.game}")
 		}).
 		EndMulticast().
 		Build()
@@ -62,11 +56,11 @@ func main() {
 		panic(err)
 	}
 
-	getDepth := func(step camel.RouteStep, depth int) error {
+	/*getDepth := func(step camel.RouteStep, depth int) error {
 		fmt.Printf("%s> %s [%T]\n", strings.Repeat("-", depth+1), step.StepName(), step)
 		return nil
 	}
-	_ = camel.WalkRoute(r, getDepth)
+	_ = camel.WalkRoute(r, getDepth)*/
 
 	camelRuntime.MustRegisterRoute(r)
 

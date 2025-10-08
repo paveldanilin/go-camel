@@ -28,6 +28,10 @@ func (s *TryStep) StepName() string {
 	return s.Name
 }
 
+// ---------------------------------------------------------------------------------------------------------------------
+// TryStepBuilder
+// ---------------------------------------------------------------------------------------------------------------------
+
 type TryStepBuilder struct {
 	builder *RouteBuilder
 	tryStep *TryStep
@@ -70,6 +74,10 @@ func (tb *TryStepBuilder) Finally(configure func(b *RouteBuilder)) *RouteBuilder
 func (tb *TryStepBuilder) EndTry() *RouteBuilder {
 	return tb.builder
 }
+
+// ---------------------------------------------------------------------------------------------------------------------
+// RouteBuilder :: Try
+// ---------------------------------------------------------------------------------------------------------------------
 
 // Try adds try-catch-finally step.
 func (b *RouteBuilder) Try(stepName string, configure func(b *RouteBuilder)) *TryStepBuilder {

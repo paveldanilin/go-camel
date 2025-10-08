@@ -20,65 +20,38 @@ func invokeProcessor(p Processor, exchange *Exchange) (panicked bool) {
 	return false
 }
 
-type identifiable interface {
-	getId() string
+type named interface {
+	getName() string
 }
 
-func getProcessorId(p Processor) string {
-	if idd, isIdd := p.(identifiable); isIdd {
-		return idd.getId()
+func getProcessorName(p Processor) string {
+	if n, isNamed := p.(named); isNamed {
+		return n.getName()
 	}
 	return fmt.Sprintf("%T", p)
-}
-
-type messageHistory struct {
-	time        time.Time
-	elapsedTime int64
-	routeName   string
-	stepName    string
-}
-
-func (mh *messageHistory) ElapsedTime() int64 {
-	return mh.elapsedTime
-}
-
-func (mh *messageHistory) Time() time.Time {
-	return mh.time
-}
-
-func (mh *messageHistory) RouteName() string {
-	return ""
-}
-
-func (mh *messageHistory) StepName() string {
-	return mh.stepName
-}
-
-func (mh *messageHistory) Message() *Message {
-	return nil
 }
 
 // processor represents a decorator for any processor with pre/post processing functions.
 type processor struct {
 	decoratedProcessor Processor
-	preProcessorFunc   func(*Exchange)
-	postProcessorFunc  func(*Exchange)
+	preProcessor       func(*Exchange)
+	postProcessor      func(*Exchange)
 }
 
-func decorateProcessor(p Processor, preProcessorFunc func(*Exchange), postProcessorFunc func(*Exchange)) *processor {
+func decorateProcessor(p Processor, preProcessor func(*Exchange), postProcessor func(*Exchange)) *processor {
 	return &processor{
 		decoratedProcessor: p,
-		preProcessorFunc:   preProcessorFunc,
-		postProcessorFunc:  postProcessorFunc,
+		preProcessor:       preProcessor,
+		postProcessor:      postProcessor,
 	}
 }
 
 func (p *processor) Process(exchange *Exchange) {
-	mh := &messageHistory{
+	mh := &MessageHistory{
 		time:        time.Now(),
 		elapsedTime: -1,
 		routeName:   "",
-		stepName:    getProcessorId(p.decoratedProcessor),
+		stepName:    getProcessorName(p.decoratedProcessor),
 	}
 	exchange.pushMessageHistory(mh)
 
@@ -91,14 +64,14 @@ func (p *processor) Process(exchange *Exchange) {
 		return
 	}
 
-	if p.postProcessorFunc != nil {
+	if p.postProcessor != nil {
 		defer func() {
-			p.postProcessorFunc(exchange)
+			p.postProcessor(exchange)
 		}()
 	}
 
-	if p.preProcessorFunc != nil {
-		p.preProcessorFunc(exchange)
+	if p.preProcessor != nil {
+		p.preProcessor(exchange)
 	}
 
 	p.decoratedProcessor.Process(exchange)
