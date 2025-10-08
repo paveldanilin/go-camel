@@ -23,7 +23,7 @@ func (b *RouteBuilder) RemoveHeader(stepName, headerName string) *RouteBuilder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&SetHeaderStep{
+	b.addStep(&RemoveHeaderStep{
 		Name:       stepName,
 		HeaderName: headerName,
 	})
