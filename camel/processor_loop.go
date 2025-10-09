@@ -42,16 +42,16 @@ func (p *loopCountProcessor) Process(exchange *Exchange) {
 		// Make shallow copy
 		var currentExchange *Exchange
 		if p.copy {
-			copy := *exchange // Shallow copy
-			currentExchange = &copy
+			cp := *exchange // Shallow copy
+			currentExchange = &cp
 		} else {
 			currentExchange = exchange
 		}
 
 		// LoopCount through processors
 		breakIteration := false
-		for _, processor := range p.processors {
-			if invokeProcessor(processor, exchange) || currentExchange.Error() != nil {
+		for _, pp := range p.processors {
+			if invokeProcessor(pp, exchange) || currentExchange.Error() != nil {
 				breakIteration = true
 				break
 			}
@@ -118,16 +118,16 @@ func (p *loopWhileProcessor) Process(exchange *Exchange) {
 		// Make shallow copy
 		var currentExchange *Exchange
 		if p.copy {
-			copy := *exchange // Shallow copy
-			currentExchange = &copy
+			cp := *exchange // Shallow copy
+			currentExchange = &cp
 		} else {
 			currentExchange = exchange
 		}
 
 		// LoopCount through processors
 		breakIteration := false
-		for _, processor := range p.processors {
-			if invokeProcessor(processor, exchange) || currentExchange.Error() != nil {
+		for _, pp := range p.processors {
+			if invokeProcessor(pp, exchange) || currentExchange.Error() != nil {
 				breakIteration = true
 				break
 			}
