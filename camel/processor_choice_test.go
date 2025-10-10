@@ -4,8 +4,8 @@ import "testing"
 
 func TestChoiceProcessor(t *testing.T) {
 	choice := newChoiceProcessor("test val").
-		addWhen(mustSimpleExpr("header.val > 5"), newSetBodyProcessor("", newConstExpr(555))).
-		addWhen(mustSimpleExpr("header.val < 5"), newSetBodyProcessor("", newConstExpr(777)))
+		addWhen(mustSimpleExpression("headers.val > 5"), newSetBodyProcessor("", newConstExpression(555))).
+		addWhen(mustSimpleExpression("headers.val < 5"), newSetBodyProcessor("", newConstExpression(777)))
 
 	exchange := NewExchange(nil, nil)
 	exchange.Message().SetHeader("val", 2)

@@ -29,6 +29,10 @@ func (m Map) All() map[string]any {
 	return m
 }
 
+func (m Map) Remove(name string) {
+	delete(m, name)
+}
+
 func (m Map) Copy() Map {
 	if m == nil {
 		return nil
@@ -36,7 +40,11 @@ func (m Map) Copy() Map {
 
 	cp := make(Map, len(m))
 	for k, v := range m {
-		cp[k] = v
+		if copier, isCopier := v.(Copier); isCopier {
+			cp[k] = copier.Copy()
+		} else {
+			cp[k] = v
+		}
 	}
 
 	return cp

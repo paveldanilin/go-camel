@@ -18,14 +18,6 @@ type ExchangeFactory interface {
 	NewExchange(c context.Context) *Exchange
 }
 
-type MessageHistory interface {
-	ElapsedTime() int64 // milliseconds
-	Time() time.Time
-	RouteName() string
-	StepName() string
-	Message() *Message // copy of message , will be nil if tackMessageCopy=true
-}
-
 type Exchange struct {
 	id      string
 	runtime RuntimeProvider
@@ -40,7 +32,7 @@ type Exchange struct {
 	hasDeadline bool
 	deadline    time.Time
 
-	messageHistory []MessageHistory
+	messageHistory []*MessageHistory
 }
 
 func NewExchange(c context.Context, r RuntimeProvider) *Exchange {
@@ -57,7 +49,7 @@ func NewExchange(c context.Context, r RuntimeProvider) *Exchange {
 		message:        NewMessage(),
 		ctx:            ctx,
 		cancel:         cancel,
-		messageHistory: []MessageHistory{},
+		messageHistory: []*MessageHistory{},
 	}
 
 	if dl, ok := c.Deadline(); ok {
@@ -130,6 +122,10 @@ func (e *Exchange) SetProperty(name string, value any) {
 	e.properties.Set(name, value)
 }
 
+func (e *Exchange) RemoveProperty(name string) {
+	e.properties.Remove(name)
+}
+
 func (e *Exchange) Message() *Message {
 	return e.message
 }
@@ -191,11 +187,11 @@ func (e *Exchange) Copy() *Exchange {
 	}
 }
 
-func (e *Exchange) pushMessageHistory(mh MessageHistory) {
+func (e *Exchange) pushMessageHistory(mh *MessageHistory) {
 	e.messageHistory = append(e.messageHistory, mh)
 }
 
-func (e *Exchange) MessageHistory() []MessageHistory {
+func (e *Exchange) MessageHistory() []*MessageHistory {
 	return e.messageHistory
 }
 
@@ -205,4 +201,15 @@ func (e *Exchange) MessagePath() []string {
 		path[i] = mh.StepName()
 	}
 	return path
+}
+
+func (e *Exchange) asMap() map[string]any {
+	return map[string]any{
+		"id":         e.Message().Id(),
+		"exchangeId": e.Id(),
+		"body":       e.Message().Body,
+		"headers":    e.Message().Headers().All(),
+		"error":      e.Error(),
+		"properties": e.Properties().All(),
+	}
 }

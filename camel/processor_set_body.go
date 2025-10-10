@@ -2,23 +2,23 @@ package camel
 
 // setBodyProcessor sets a camel.Message body
 type setBodyProcessor struct {
-	id    string
-	value Expr
+	name            string
+	valueExpression expression
 }
 
-func newSetBodyProcessor(id string, value Expr) *setBodyProcessor {
+func newSetBodyProcessor(name string, valueExpression expression) *setBodyProcessor {
 	return &setBodyProcessor{
-		id:    id,
-		value: value,
+		name:            name,
+		valueExpression: valueExpression,
 	}
 }
 
-func (p *setBodyProcessor) getId() string {
-	return p.id
+func (p *setBodyProcessor) getName() string {
+	return p.name
 }
 
 func (p *setBodyProcessor) Process(exchange *Exchange) {
-	value, err := p.value.Eval(exchange)
+	value, err := p.valueExpression.eval(exchange)
 	if err != nil {
 		exchange.SetError(err)
 		return

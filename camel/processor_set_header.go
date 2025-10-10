@@ -2,30 +2,30 @@ package camel
 
 // setHeaderProcessor sets Message's header
 type setHeaderProcessor struct {
-	id string
+	name string
 
-	name  string
-	value Expr
+	headerName      string
+	valueExpression expression
 }
 
-func newSetHeaderProcessor(id, name string, value Expr) *setHeaderProcessor {
+func newSetHeaderProcessor(name, headerName string, valueExpression expression) *setHeaderProcessor {
 	return &setHeaderProcessor{
-		id:    id,
-		name:  name,
-		value: value,
+		name:            name,
+		headerName:      headerName,
+		valueExpression: valueExpression,
 	}
 }
 
-func (p *setHeaderProcessor) getId() string {
-	return p.id
+func (p *setHeaderProcessor) getName() string {
+	return p.name
 }
 
 func (p *setHeaderProcessor) Process(exchange *Exchange) {
-	value, err := p.value.Eval(exchange)
+	value, err := p.valueExpression.eval(exchange)
 	if err != nil {
 		exchange.SetError(err)
 		return
 	}
 
-	exchange.Message().SetHeader(p.name, value)
+	exchange.Message().SetHeader(p.headerName, value)
 }

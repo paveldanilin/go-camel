@@ -8,16 +8,16 @@ type loopCountProcessor struct {
 	id string
 
 	count      int
-	processors []Processor
 	copy       bool // TRUE - make shallow copy for each iteration
+	processors []Processor
 }
 
 func newLoopCountProcessor(id string, count int) *loopCountProcessor {
 	return &loopCountProcessor{
 		id:         id,
 		count:      count,
-		processors: []Processor{},
 		copy:       true,
+		processors: []Processor{},
 	}
 }
 
@@ -42,16 +42,16 @@ func (p *loopCountProcessor) Process(exchange *Exchange) {
 		// Make shallow copy
 		var currentExchange *Exchange
 		if p.copy {
-			copy := *exchange // Shallow copy
-			currentExchange = &copy
+			cp := *exchange // Shallow copy
+			currentExchange = &cp
 		} else {
 			currentExchange = exchange
 		}
 
 		// LoopCount through processors
 		breakIteration := false
-		for _, processor := range p.processors {
-			if invokeProcessor(processor, exchange) || currentExchange.Error() != nil {
+		for _, pp := range p.processors {
+			if invokeProcessor(pp, exchange) || currentExchange.Error() != nil {
 				breakIteration = true
 				break
 			}
@@ -75,17 +75,17 @@ type loopWhileProcessor struct {
 	id string
 
 	predicate  Predicate
-	processors []Processor
 	copy       bool // TRUE - make shallow copy for each iteration
+	processors []Processor
 }
 
-func newLoopWhileProcessor(id string, predicate Expr) *loopWhileProcessor {
+func newLoopWhileProcessor(id string, predicate expression) *loopWhileProcessor {
 	if predicate == nil {
 		panic(fmt.Errorf("camel: processor: LoopWhile predicate cannot be nil"))
 	}
 	return &loopWhileProcessor{
 		id:         id,
-		predicate:  newPredicateFromExpr(predicate),
+		predicate:  newPredicateFromExpression(predicate),
 		processors: []Processor{},
 		copy:       true,
 	}
@@ -118,16 +118,16 @@ func (p *loopWhileProcessor) Process(exchange *Exchange) {
 		// Make shallow copy
 		var currentExchange *Exchange
 		if p.copy {
-			copy := *exchange // Shallow copy
-			currentExchange = &copy
+			cp := *exchange // Shallow copy
+			currentExchange = &cp
 		} else {
 			currentExchange = exchange
 		}
 
 		// LoopCount through processors
 		breakIteration := false
-		for _, processor := range p.processors {
-			if invokeProcessor(processor, exchange) || currentExchange.Error() != nil {
+		for _, pp := range p.processors {
+			if invokeProcessor(pp, exchange) || currentExchange.Error() != nil {
 				breakIteration = true
 				break
 			}

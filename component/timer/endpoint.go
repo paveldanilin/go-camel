@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/paveldanilin/go-camel/camel"
-	"github.com/paveldanilin/go-camel/uri"
 	"sync"
 	"time"
 )
@@ -13,7 +12,7 @@ const EndpointParamInterval = "interval"
 
 type Endpoint struct {
 	mu        sync.RWMutex
-	uri       *uri.URI
+	uri       *camel.URI
 	component *Component
 	consumer  *Consumer
 
@@ -21,7 +20,7 @@ type Endpoint struct {
 	interval time.Duration
 }
 
-func NewEndpoint(uri *uri.URI, c *Component) (*Endpoint, error) {
+func NewEndpoint(uri *camel.URI, c *Component) (*Endpoint, error) {
 	interval, err := resolveInterval(uri)
 	if err != nil {
 		return nil, err
@@ -37,7 +36,7 @@ func NewEndpoint(uri *uri.URI, c *Component) (*Endpoint, error) {
 	return timerEndpoint, nil
 }
 
-func resolveInterval(uri *uri.URI) (time.Duration, error) {
+func resolveInterval(uri *camel.URI) (time.Duration, error) {
 	if !uri.HasParam(EndpointParamInterval) {
 		return 0, fmt.Errorf("timer: mandatory parameter not found '%s'", EndpointParamInterval)
 	}
@@ -45,7 +44,7 @@ func resolveInterval(uri *uri.URI) (time.Duration, error) {
 	return time.ParseDuration(uri.MustParam(EndpointParamInterval))
 }
 
-func (e *Endpoint) Uri() *uri.URI {
+func (e *Endpoint) Uri() *camel.URI {
 	return e.uri
 }
 

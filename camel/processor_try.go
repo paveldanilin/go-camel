@@ -62,22 +62,22 @@ type catchClause struct {
 }
 
 type tryProcessor struct {
-	id                string
+	name              string
 	processors        []Processor
 	catchClauses      []catchClause
 	finallyProcessors []Processor
 }
 
-func newTryProcessor(id string) *tryProcessor {
+func newTryProcessor(name string) *tryProcessor {
 	return &tryProcessor{
-		id:           id,
+		name:         name,
 		processors:   []Processor{},
 		catchClauses: []catchClause{},
 	}
 }
 
-func (p *tryProcessor) getId() string {
-	return p.id
+func (p *tryProcessor) getName() string {
+	return p.name
 }
 
 func (p *tryProcessor) addProcessor(processor Processor) *tryProcessor {

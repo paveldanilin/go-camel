@@ -3,7 +3,7 @@ package camel
 import "testing"
 
 func TestSetBodyProcessor(t *testing.T) {
-	mul := newSetBodyProcessor("set body", funcExpr(func(exchange *Exchange) (any, error) {
+	mul := newSetBodyProcessor("set body", funcExpression(func(exchange *Exchange) (any, error) {
 
 		a := exchange.Message().MustHeader("a")
 		b := exchange.Message().MustHeader("b")
