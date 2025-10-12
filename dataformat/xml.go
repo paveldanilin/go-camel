@@ -24,12 +24,12 @@ func (XMLFormat) Unmarshal(data []byte, targetType any) (any, error) {
 
 // Marshal serializes data into XML, discarding []byte to match the signature.
 // We use xml.Encoder for stream serialization.
-func (XMLFormat) Marshal(data any) error {
+func (XMLFormat) Marshal(data any) (string, error) {
 	buf := bytes.NewBuffer(make([]byte, 0, 1024))
 	enc := xml.NewEncoder(buf)
 	err := enc.Encode(data)
 	if err != nil {
-		return err
+		return "", err
 	}
-	return enc.Flush()
+	return "", enc.Flush()
 }

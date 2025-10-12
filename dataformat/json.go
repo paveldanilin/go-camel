@@ -27,10 +27,10 @@ func (JSONFormat) Unmarshal(data []byte, targetType any) (any, error) {
 
 // Marshal serializes data to JSON.
 // Using json.Encoder for stream-serialization (more effective than Marshal for big data).
-func (JSONFormat) Marshal(data any) error {
+func (JSONFormat) Marshal(data any) (string, error) {
 	buf := bytes.NewBuffer(make([]byte, 0, 1024)) // initial buffer for reducing realloc
 	enc := json.NewEncoder(buf)
 	enc.SetEscapeHTML(false) // disable escape
 	err := enc.Encode(data)
-	return err
+	return "", err
 }
