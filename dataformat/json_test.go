@@ -107,7 +107,7 @@ func TestJSONFormat_Marshal(t *testing.T) {
 	jsonFmt := &JSONFormat{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := jsonFmt.Marshal(tt.data); (err != nil) != tt.wantErr {
+			if _, err := jsonFmt.Marshal(tt.data); (err != nil) != tt.wantErr {
 				t.Errorf("Marshal() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
