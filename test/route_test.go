@@ -102,13 +102,13 @@ func TestRoute_Unmarshal(t *testing.T) {
 
 	// Build camel route definition
 	route, err := camel.NewRoute("isPersonAdult", "direct:isPersonAdult").
-		//Unmarshal("json", person{}).
+		Unmarshal("", "json", person{}).
 		Choice("test person age").
 		// now body contains person{}
-		When(camel.Simple("body.age>=18"), func(b *camel.RouteBuilder) {
+		When(camel.Simple("body.Age>=18"), func(b *camel.RouteBuilder) {
 			b.SetBody("person is adult", camel.Constant(true))
 		}).
-		When(camel.Simple("body.age<18"), func(b *camel.RouteBuilder) {
+		When(camel.Simple("body.Age<18"), func(b *camel.RouteBuilder) {
 			b.SetBody("person is not adult", camel.Constant(false))
 		}).
 		EndChoice().

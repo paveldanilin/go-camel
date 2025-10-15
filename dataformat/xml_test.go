@@ -94,7 +94,7 @@ func TestXMLFormat_Marshal(t *testing.T) {
 	xmlFmt := &XMLFormat{}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if err := xmlFmt.Marshal(tt.data); (err != nil) != tt.wantErr {
+			if _, err := xmlFmt.Marshal(tt.data); (err != nil) != tt.wantErr {
 				t.Errorf("Marshal() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})

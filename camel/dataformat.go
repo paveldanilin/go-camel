@@ -7,8 +7,10 @@ import (
 
 type DataFormat interface {
 	Unmarshal(data []byte, targetType any) (any, error)
-	Marshal(data any) error
+	Marshal(data any) (string, error)
 }
+
+type DataFormatJson struct{}
 
 // ---------------------------------------------------------------------------------------------------------------------
 // DataFormatRegistry
