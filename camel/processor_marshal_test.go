@@ -1,6 +1,7 @@
 package camel
 
 import (
+	"github.com/paveldanilin/go-camel/dataformat"
 	"testing"
 )
 
@@ -10,14 +11,19 @@ type jsonModelMarshal struct {
 }
 
 func TestJsonProcessorMarshal(t *testing.T) {
-	expectedBody := `{"Page":2,"Fruits":["orange","abricot"]}`
-	model := jsonModelMarshal{Page: 2, Fruits: []string{"orange", "abricot"}}
-	jsonProcMarshal := newMarshalProcessor("json", model, []byte{})
+	p := newMarshalProcessor("", &dataformat.JSONFormat{})
+
 	exchange := NewExchange(nil, nil)
+	exchange.Message().Body = jsonModelMarshal{Page: 2, Fruits: []string{"orange", "abricot"}}
 
-	jsonProcMarshal.Process(exchange)
+	p.Process(exchange)
 
+	if exchange.err != nil {
+		t.Fatal(exchange.err)
+	}
+
+	expectedBody := `{"Page":2,"Fruits":["orange","abricot"]}`
 	if exchange.Message().Body != expectedBody {
-		t.Errorf("TestJsonProcessorMarshal() = %v; want body %v", exchange.Message().Body, expectedBody)
+		t.Errorf("TestJsonProcessorMarshal() = [%v]; want body %v", exchange.Message().Body, expectedBody)
 	}
 }

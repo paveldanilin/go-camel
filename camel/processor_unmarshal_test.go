@@ -1,6 +1,7 @@
 package camel
 
 import (
+	"github.com/paveldanilin/go-camel/dataformat"
 	"reflect"
 	"testing"
 )
@@ -11,13 +12,14 @@ type jsonModelUnmarshal struct {
 }
 
 func TestUnmarshalProcessorJson(t *testing.T) {
-	expectedBody := reflect.TypeOf(jsonModelUnmarshal{})
-	json := `{"Page": 1, "Fruits": ["apple", "peach"]}`
-	jsonProcUnmarshal := newUnmarshalProcessor("json", jsonModelUnmarshal{}, []byte(json))
+	p := newUnmarshalProcessor("", jsonModelUnmarshal{}, dataformat.JSONFormat{})
+
 	exchange := NewExchange(nil, nil)
+	exchange.Message().Body = `{"Page": 1, "Fruits": ["apple", "peach"]}`
 
-	jsonProcUnmarshal.Process(exchange)
+	p.Process(exchange)
 
+	expectedBody := reflect.TypeOf(&jsonModelUnmarshal{})
 	if reflect.TypeOf(exchange.Message().Body) != expectedBody {
 		t.Errorf("TestJsonProcessorUnmarshal() = %v; want body %v", exchange.Message().Body, expectedBody)
 	}

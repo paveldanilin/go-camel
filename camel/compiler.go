@@ -174,6 +174,14 @@ func createProcessor(c compilerConfig, routeName string, s ...RouteStep) (Proces
 	case *RemovePropertyStep:
 		p := newRemovePropertyProcessor(t.StepName(), t.PropertyName)
 		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+
+	case *MarshalStep:
+		p := newMarshalProcessor(t.StepName(), c.dataFormatRegistry.DataFormat(t.Format))
+		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+
+	case *UnmarshalStep:
+		p := newUnmarshalProcessor(t.StepName(), t.TargetType, c.dataFormatRegistry.DataFormat(t.Format))
+		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
 	}
 
 	return nil, fmt.Errorf("unknown route step: %T", s[0])

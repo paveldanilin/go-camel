@@ -3,6 +3,7 @@ package dataformat
 import (
 	"bytes"
 	"encoding/json"
+	"strings"
 )
 
 // JSONFormat implementation for JSON using the standard encoding/json library.
@@ -28,9 +29,9 @@ func (JSONFormat) Unmarshal(data []byte, targetType any) (any, error) {
 // Marshal serializes data to JSON.
 // Using json.Encoder for stream-serialization (more effective than Marshal for big data).
 func (JSONFormat) Marshal(data any) (string, error) {
-	buf := bytes.NewBuffer(make([]byte, 0, 1024)) // initial buffer for reducing realloc
+	buf := bytes.NewBuffer(make([]byte, 0, 1024)) // initial buffer for reducing re-alloc
 	enc := json.NewEncoder(buf)
 	enc.SetEscapeHTML(false) // disable escape
 	err := enc.Encode(data)
-	return "", err
+	return strings.TrimSpace(buf.String()), err
 }

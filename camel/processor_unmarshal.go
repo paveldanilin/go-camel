@@ -1,46 +1,44 @@
 package camel
 
 import (
-	"encoding/json"
 	"fmt"
-	"reflect"
 )
 
 type unmarshalProcessor struct {
-	format string
-	model  any
-	data   []byte
+	name       string
+	model      any
+	dataFormat DataFormat
 }
 
-func newUnmarshalProcessor(format string, model any, data []byte) unmarshalProcessor {
-	return unmarshalProcessor{
-		format: format,
-		model:  model,
-		data:   data,
+func newUnmarshalProcessor(name string, model any, dataFormat DataFormat) *unmarshalProcessor {
+	return &unmarshalProcessor{
+		name:       name,
+		model:      model,
+		dataFormat: dataFormat,
 	}
 }
 
-func (j DataFormatJson) Unmarshal(jsonData []byte, model any) (any, error) {
-	modelType := reflect.TypeOf(model)
-	newValuePtr := reflect.New(modelType)
-	target := newValuePtr.Interface()
-
-	if err := json.Unmarshal(jsonData, target); err != nil {
-		return nil, fmt.Errorf("desearilization error json: %w", err)
-	}
-
-	return newValuePtr.Elem().Interface(), nil
+func (p *unmarshalProcessor) getName() string {
+	return p.name
 }
 
-func (j unmarshalProcessor) Process(exchange *Exchange) {
-	var d DataFormat
-	switch j.format {
-	case "json":
-		d = DataFormatJson{}
+func (p *unmarshalProcessor) Process(exchange *Exchange) {
+	// Check Message.Body datatype
+	var data []byte
+	switch t := exchange.Message().Body.(type) {
+	case string:
+		data = []byte(t)
+	case []byte:
+		data = t
 	default:
-		fmt.Println("unknown data format")
+		exchange.SetError(fmt.Errorf("unmarshal: expected json data in message body, but got %T", exchange.Message().Body))
+		return
 	}
-	model, err := d.Unmarshal(j.data, j.model)
-	exchange.Message().Body = model
-	exchange.err = err
+
+	body, err := p.dataFormat.Unmarshal(data, p.model)
+	if err != nil {
+		exchange.SetError(err)
+		return
+	}
+	exchange.Message().Body = body
 }

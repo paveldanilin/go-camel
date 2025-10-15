@@ -31,5 +31,5 @@ func (XMLFormat) Marshal(data any) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return "", enc.Flush()
+	return buf.String(), enc.Flush()
 }

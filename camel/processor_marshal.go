@@ -1,44 +1,26 @@
 package camel
 
-import (
-	"encoding/json"
-	"fmt"
-)
-
 type marshalProcessor struct {
-	format string
-	model  any
+	name       string
+	dataFormat DataFormat
 }
 
-func newMarshalProcessor(format string, model any, data []byte) marshalProcessor {
-	return marshalProcessor{
-		format: format,
-		model:  model,
+func newMarshalProcessor(name string, dataFormat DataFormat) *marshalProcessor {
+	return &marshalProcessor{
+		name:       name,
+		dataFormat: dataFormat,
 	}
 }
 
-func (j DataFormatJson) Marshal(model any) (string, error) {
-	data, err := json.Marshal(model)
-	var json string
+func (p *marshalProcessor) getName() string {
+	return p.name
+}
 
+func (p *marshalProcessor) Process(exchange *Exchange) {
+	body, err := p.dataFormat.Marshal(exchange.Message().Body)
 	if err != nil {
-		return "", fmt.Errorf("searilization error json: %w", err)
-	} else {
-		json = string(data)
+		exchange.SetError(err)
+		return
 	}
-
-	return json, nil
-}
-
-func (j marshalProcessor) Process(exchange *Exchange) {
-	var d DataFormat
-	switch j.format {
-	case "json":
-		d = DataFormatJson{}
-	default:
-		fmt.Println("unknown data format")
-	}
-	model, err := d.Marshal(j.model)
-	exchange.Message().Body = model
-	exchange.err = err
+	exchange.Message().Body = body
 }

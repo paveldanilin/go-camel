@@ -107,8 +107,8 @@ func NewRuntime(config RuntimeConfig) *Runtime {
 	// register default DataFormat registry
 	if runtime.dataFormatRegistry == nil {
 		runtime.dataFormatRegistry = newDataFormatRegistry()
-		runtime.dataFormatRegistry.RegisterDataFormat("json", dataformat.JSONFormat{})
-		runtime.dataFormatRegistry.RegisterDataFormat("xml", dataformat.XMLFormat{})
+		runtime.dataFormatRegistry.RegisterDataFormat("json", &dataformat.JSONFormat{})
+		runtime.dataFormatRegistry.RegisterDataFormat("xml", &dataformat.XMLFormat{})
 	}
 	if runtime.logger == nil {
 		runtime.logger = NewSlogLogger(slog.New(slog.NewTextHandler(os.Stdout, nil)), LogLevelInfo)
