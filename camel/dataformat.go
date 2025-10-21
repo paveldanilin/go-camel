@@ -5,17 +5,6 @@ import (
 	"sync"
 )
 
-type DataFormat interface {
-	Unmarshal(data []byte, targetType any) (any, error)
-	Marshal(data any) (string, error)
-}
-
-type DataFormatJson struct{}
-
-// ---------------------------------------------------------------------------------------------------------------------
-// DataFormatRegistry
-// ---------------------------------------------------------------------------------------------------------------------
-
 type DataFormatRegistry interface {
 	RegisterDataFormat(name string, format DataFormat) error
 	DataFormat(name string) DataFormat

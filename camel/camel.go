@@ -39,6 +39,11 @@ type RuntimeAware interface {
 	SetRuntime(runtime *Runtime)
 }
 
+type DataFormat interface {
+	Unmarshal(data []byte, targetType any) (any, error)
+	Marshal(data any) (string, error)
+}
+
 type route struct {
 	name     string
 	from     string
