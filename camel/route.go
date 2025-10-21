@@ -23,7 +23,7 @@ type RouteBuilder struct {
 
 func NewRoute(name, from string) *RouteBuilder {
 	if name == "" {
-		panic(fmt.Errorf("camel: 'headerName' must be not empty string"))
+		panic(fmt.Errorf("camel: 'name' must be not empty string"))
 	}
 	if from == "" {
 		panic(fmt.Errorf("camel: 'from' must be not empty string"))
