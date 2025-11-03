@@ -1,0 +1,37 @@
+package dataformat
+
+import (
+	"bytes"
+	"encoding/json"
+	"strings"
+)
+
+// JSON2 implementation for JSON using the standard encoding/json library.
+// For maximum efficiency, we use Decoder/Encoder with buffers instead of Marshal/Unmarshal,
+// to minimize allocations (especially in Read/Marshal on large data).
+type JSON2 struct{}
+
+// Unmarshal deserializes []byte into new instance of targetType and returns data or error.
+// If targetType is not a pointer, creates a new pointer.
+// Using json.Decoder for stream-parsing (more effective for big data).
+func (JSON2) Unmarshal(data []byte, targetType any) (any, error) {
+	var target = newInstanceOfType(targetType)
+
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.UseNumber() // avoid float precision loss
+	err := dec.Decode(target)
+	if err != nil {
+		return nil, err
+	}
+	return target, nil
+}
+
+// Marshal serializes data to JSON.
+// Using json.Encoder for stream-serialization (more effective than Marshal for big data).
+func (JSON2) Marshal(data any) (string, error) {
+	buf := bytes.NewBuffer(make([]byte, 0, 1024)) // initial buffer for reducing re-alloc
+	enc := json.NewEncoder(buf)
+	enc.SetEscapeHTML(false) // disable escape
+	err := enc.Encode(data)
+	return strings.TrimSpace(buf.String()), err
+}
