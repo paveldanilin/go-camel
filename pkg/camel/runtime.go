@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/paveldanilin/go-camel/pkg/camel/api"
+	"github.com/paveldanilin/go-camel/pkg/camel/component"
 	"github.com/paveldanilin/go-camel/pkg/camel/converter"
 	"github.com/paveldanilin/go-camel/pkg/camel/dataformat"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
@@ -29,6 +30,21 @@ type ConverterRegistry interface {
 	Register(conv any) error
 	Type(name string) (reflect.Type, bool)
 	Convert(value any, toType reflect.Type, params map[string]any) (any, error)
+}
+
+type ComponentRegistry interface {
+	RegisterComponent(component api.Component) error
+	Component(id string) api.Component
+}
+
+type DataFormatRegistry interface {
+	RegisterDataFormat(name string, format api.DataFormat) error
+	DataFormat(name string) api.DataFormat
+}
+
+type FuncRegistry interface {
+	RegisterFunc(name string, fn func(*exchange.Exchange)) error
+	Func(name string) func(*exchange.Exchange)
 }
 
 type route struct {
@@ -101,12 +117,12 @@ func NewRuntime(config RuntimeConfig) *Runtime {
 		runtime.funcRegistry = newFuncRegistry()
 	}
 	if runtime.componentRegistry == nil {
-		runtime.componentRegistry = newComponentRegistry()
+		runtime.componentRegistry = component.NewRegistry()
 	}
 
 	// register default DataFormat registry
 	if runtime.dataFormatRegistry == nil {
-		runtime.dataFormatRegistry = newDataFormatRegistry()
+		runtime.dataFormatRegistry = dataformat.NewRegistry()
 		runtime.dataFormatRegistry.RegisterDataFormat("json", &dataformat.JSON{})
 		runtime.dataFormatRegistry.RegisterDataFormat("xml", &dataformat.XML{})
 	}
@@ -114,7 +130,7 @@ func NewRuntime(config RuntimeConfig) *Runtime {
 		runtime.logger = logger.NewSlog(slog.New(slog.NewTextHandler(os.Stdout, nil)), api.LogLevelInfo)
 	}
 	if runtime.converterRegistry == nil {
-		runtime.converterRegistry = NewConverterRegistry()
+		runtime.converterRegistry = converter.NewRegistry()
 		runtime.converterRegistry.Register(converter.StringToBool())
 		runtime.converterRegistry.Register(converter.StringToFloat64())
 		runtime.converterRegistry.Register(converter.StringToFloat())

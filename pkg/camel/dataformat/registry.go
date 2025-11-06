@@ -1,4 +1,4 @@
-package camel
+package dataformat
 
 import (
 	"errors"
@@ -6,23 +6,18 @@ import (
 	"sync"
 )
 
-type DataFormatRegistry interface {
-	RegisterDataFormat(name string, format api.DataFormat) error
-	DataFormat(name string) api.DataFormat
-}
-
-type dataFormatRegistry struct {
+type registry struct {
 	mu            sync.Mutex
 	dataFormatMap map[string]api.DataFormat
 }
 
-func newDataFormatRegistry() *dataFormatRegistry {
-	return &dataFormatRegistry{
+func NewRegistry() *registry {
+	return &registry{
 		dataFormatMap: map[string]api.DataFormat{},
 	}
 }
 
-func (r *dataFormatRegistry) RegisterDataFormat(name string, dataFormat api.DataFormat) error {
+func (r *registry) RegisterDataFormat(name string, dataFormat api.DataFormat) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -34,7 +29,7 @@ func (r *dataFormatRegistry) RegisterDataFormat(name string, dataFormat api.Data
 	return nil
 }
 
-func (r *dataFormatRegistry) DataFormat(name string) api.DataFormat {
+func (r *registry) DataFormat(name string) api.DataFormat {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

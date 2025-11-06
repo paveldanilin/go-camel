@@ -153,7 +153,7 @@ type operation struct {
 }
 
 func TestRoute_ConvertBody(t *testing.T) {
-	convReg := camel.NewConverterRegistry()
+	convReg := converter.NewRegistry()
 	convReg.Register(converter.StringToInt())
 	convReg.Register(converter.StringToFloat64())
 	convReg.Register(converter.Func[map[string]any, *operation](func(v map[string]any, _ map[string]any) (*operation, error) {

@@ -1,4 +1,4 @@
-package camel
+package component
 
 import (
 	"errors"
@@ -6,23 +6,18 @@ import (
 	"sync"
 )
 
-type ComponentRegistry interface {
-	RegisterComponent(component api.Component) error
-	Component(id string) api.Component
-}
-
-type componentRegistry struct {
+type registry struct {
 	mu           sync.Mutex
 	componentMap map[string]api.Component
 }
 
-func newComponentRegistry() *componentRegistry {
-	return &componentRegistry{
+func NewRegistry() *registry {
+	return &registry{
 		componentMap: map[string]api.Component{},
 	}
 }
 
-func (cr *componentRegistry) RegisterComponent(component api.Component) error {
+func (cr *registry) RegisterComponent(component api.Component) error {
 	cr.mu.Lock()
 	defer cr.mu.Unlock()
 
@@ -34,7 +29,7 @@ func (cr *componentRegistry) RegisterComponent(component api.Component) error {
 	return nil
 }
 
-func (cr *componentRegistry) Component(id string) api.Component {
+func (cr *registry) Component(id string) api.Component {
 	cr.mu.Lock()
 	defer cr.mu.Unlock()
 

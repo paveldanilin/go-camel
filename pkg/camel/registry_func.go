@@ -6,11 +6,6 @@ import (
 	"sync"
 )
 
-type FuncRegistry interface {
-	RegisterFunc(name string, fn func(*exchange.Exchange)) error
-	Func(name string) func(*exchange.Exchange)
-}
-
 type funcRegistry struct {
 	mu      sync.Mutex
 	funcMap map[string]func(*exchange.Exchange)
