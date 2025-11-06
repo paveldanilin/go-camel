@@ -1,8 +1,8 @@
 package log
 
 import (
+	"github.com/paveldanilin/go-camel/pkg/camel/api"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
-	"github.com/paveldanilin/go-camel/pkg/camel/logger"
 	"github.com/paveldanilin/go-camel/pkg/camel/template"
 )
 
@@ -10,12 +10,12 @@ type logProcessor struct {
 	routeName string
 	name      string
 	msg       string // msg represents a templated message
-	level     logger.LogLevel
+	level     api.LogLevel
 	tpl       *template.Template // will be used if msg contains variables like: ${var_name} or ${person.headerName} or ${person.products[0].headerName}.
-	logger    logger.Logger
+	logger    api.Logger
 }
 
-func NewProcessor(routeName, name, msg string, level logger.LogLevel, logger logger.Logger) *logProcessor {
+func NewProcessor(routeName, name, msg string, level api.LogLevel, logger api.Logger) *logProcessor {
 	p := &logProcessor{
 		routeName: routeName,
 		name:      name,
@@ -51,5 +51,5 @@ func (p *logProcessor) Process(e *exchange.Exchange) {
 		return
 	}
 
-	p.logger.Log(e.Context(), p.level, msg, "step", p.routeName, "processor", p.name)
+	p.logger.Log(e.Context(), p.level, msg, "routestep", p.routeName, "processor", p.name)
 }

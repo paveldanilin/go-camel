@@ -58,8 +58,8 @@ func main() {
 		panic(err)
 	}
 
-	/*getDepth := fn(step camel.RouteStep, depth int) error {
-		fmt.Printf("%s> %s [%T]\n", strings.Repeat("-", depth+1), step.StepName(), step)
+	/*getDepth := fn(routestep camel.RouteStep, depth int) error {
+		fmt.Printf("%s> %s [%T]\n", strings.Repeat("-", depth+1), routestep.StepName(), routestep)
 		return nil
 	}
 	_ = camel.WalkRoute(r, getDepth)*/

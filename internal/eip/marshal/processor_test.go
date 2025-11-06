@@ -12,7 +12,7 @@ type jsonModelMarshal struct {
 }
 
 func TestJsonProcessorMarshal(t *testing.T) {
-	p := NewProcessor("", "", &dataformat.JSON2{})
+	p := NewProcessor("", "", &dataformat.JSON{})
 
 	e := exchange.NewExchange(nil)
 	e.Message().Body = jsonModelMarshal{Page: 2, Fruits: []string{"orange", "abricot"}}

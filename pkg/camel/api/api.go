@@ -1,6 +1,7 @@
 package api
 
 import (
+	"context"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 	"github.com/paveldanilin/go-camel/pkg/camel/uri"
 )
@@ -40,4 +41,29 @@ type Converter[From any, To any] interface {
 
 type RouteStep interface {
 	StepName() string
+}
+
+type LogLevel int
+
+const (
+	LogLevelError = iota + 1
+	LogLevelWarn
+	LogLevelInfo
+	LogLevelDebug
+)
+
+type Logger interface {
+	Log(ctx context.Context, level LogLevel, msg string, args ...any)
+	Info(ctx context.Context, msg string, args ...any)
+	Warn(ctx context.Context, msg string, args ...any)
+	Error(ctx context.Context, msg string, args ...any)
+	Debug(ctx context.Context, msg string, args ...any)
+}
+
+type ExchangeAggregator interface {
+	AggregateExchange(oldExchange *exchange.Exchange, newExchange *exchange.Exchange) *exchange.Exchange
+}
+
+type ExchangeFactory interface {
+	NewExchange(c context.Context) *exchange.Exchange
 }

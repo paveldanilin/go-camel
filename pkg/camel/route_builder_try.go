@@ -3,12 +3,12 @@ package camel
 import (
 	"fmt"
 	"github.com/paveldanilin/go-camel/pkg/camel/errs"
-	"github.com/paveldanilin/go-camel/pkg/camel/step"
+	"github.com/paveldanilin/go-camel/pkg/camel/routestep"
 )
 
 type TryStepBuilder struct {
 	builder *RouteBuilder
-	tryStep *step.Try
+	tryStep *routestep.Try
 }
 
 // Catch adds 'catch' to the current TryStep.
@@ -17,7 +17,7 @@ func (tb *TryStepBuilder) Catch(errorMatcher errs.Matcher, configure func(b *Rou
 		return tb
 	}
 
-	catchClause := step.CatchWhen{ErrorMatcher: errorMatcher}
+	catchClause := routestep.CatchWhen{ErrorMatcher: errorMatcher}
 
 	tb.builder.pushStack(&catchClause.Steps)
 	configure(tb.builder)
@@ -34,7 +34,7 @@ func (tb *TryStepBuilder) Finally(configure func(b *RouteBuilder)) *RouteBuilder
 		return tb.builder
 	}
 	if tb.tryStep.FinallySteps != nil {
-		tb.builder.err = fmt.Errorf("step Try '%s' already has block Finally", tb.tryStep.Name)
+		tb.builder.err = fmt.Errorf("routestep Try '%s' already has block Finally", tb.tryStep.Name)
 		return tb.builder
 	}
 

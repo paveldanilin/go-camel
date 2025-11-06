@@ -12,11 +12,11 @@ type multicastProcessor struct {
 	name        string
 	parallel    bool
 	stopOnError bool
-	aggregator  exchange.Aggregator
-	outputs     []api.Processor // each output is a start of sub step
+	aggregator  api.ExchangeAggregator
+	outputs     []api.Processor // each output is a start of sub route
 }
 
-func NewProcessor(routeName, name string, parallel, stopOnError bool, aggregator exchange.Aggregator) *multicastProcessor {
+func NewProcessor(routeName, name string, parallel, stopOnError bool, aggregator api.ExchangeAggregator) *multicastProcessor {
 	return &multicastProcessor{
 		routeName:   routeName,
 		name:        name,

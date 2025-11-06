@@ -3,12 +3,12 @@ package camel
 import (
 	"fmt"
 	"github.com/paveldanilin/go-camel/pkg/camel/expr"
-	"github.com/paveldanilin/go-camel/pkg/camel/step"
+	"github.com/paveldanilin/go-camel/pkg/camel/routestep"
 )
 
 type ChoiceStepBuilder struct {
 	builder    *RouteBuilder
-	choiceStep *step.Choice
+	choiceStep *routestep.Choice
 }
 
 // When adds ChoiceWhen block to the current ChoiceStep and returns ChoiceStepBuilder.
@@ -17,7 +17,7 @@ func (cb *ChoiceStepBuilder) When(predicate expr.Expression, configure func(b *R
 		return cb
 	}
 
-	whenCase := step.ChoiceWhen{Predicate: predicate}
+	whenCase := routestep.ChoiceWhen{Predicate: predicate}
 
 	cb.builder.pushStack(&whenCase.Steps)
 	configure(cb.builder)

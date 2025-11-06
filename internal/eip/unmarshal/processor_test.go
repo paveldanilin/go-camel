@@ -13,7 +13,7 @@ type jsonModelUnmarshal struct {
 }
 
 func TestUnmarshalProcessorJson(t *testing.T) {
-	p := NewProcessor("", "", jsonModelUnmarshal{}, dataformat.JSON2{})
+	p := NewProcessor("", "", jsonModelUnmarshal{}, dataformat.JSON{})
 
 	e := exchange.NewExchange(nil)
 	e.Message().Body = `{"Page": 1, "Fruits": ["apple", "peach"]}`

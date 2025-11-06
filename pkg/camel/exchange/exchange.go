@@ -6,14 +6,6 @@ import (
 	"time"
 )
 
-type Aggregator interface {
-	AggregateExchange(oldExchange *Exchange, newExchange *Exchange) *Exchange
-}
-
-type Factory interface {
-	NewExchange(c context.Context) *Exchange
-}
-
 type Exchange struct {
 	id    string
 	start time.Time
@@ -163,23 +155,6 @@ func (e *Exchange) Copy() *Exchange {
 		deadline:    e.deadline,
 	}
 }
-
-/*
-fn (e *Exchange) pushMessageHistory(mh *MessageHistoryRecord) {
-	e.messageHistory = append(e.messageHistory, mh)
-}
-
-fn (e *Exchange) MessageHistoryRecord() []*MessageHistoryRecord {
-	return e.messageHistory
-}
-
-fn (e *Exchange) MessagePath() []string {
-	path := make([]string, len(e.messageHistory))
-	for i, mh := range e.messageHistory {
-		path[i] = mh.StepName()
-	}
-	return path
-}*/
 
 func (e *Exchange) AsMap() map[string]any {
 	return map[string]any{

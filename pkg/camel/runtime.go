@@ -21,7 +21,7 @@ type EndpointRegistry interface {
 }
 
 type ExchangeFactoryAware interface {
-	SetExchangeFactory(f exchange.Factory)
+	SetExchangeFactory(f api.ExchangeFactory)
 }
 
 type ConverterRegistry interface {
@@ -41,17 +41,19 @@ type Runtime struct {
 	name string
 	mu   sync.RWMutex
 
+	messageHistory bool
+
 	funcRegistry       FuncRegistry
 	componentRegistry  ComponentRegistry
 	dataFormatRegistry DataFormatRegistry
-	exchangeFactory    exchange.Factory
+	exchangeFactory    api.ExchangeFactory
 	converterRegistry  ConverterRegistry
 
 	routes    map[string]*route
 	endpoints map[string]api.Endpoint
 	consumers []api.Consumer
 
-	logger logger.Logger
+	logger api.Logger
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -59,12 +61,13 @@ type Runtime struct {
 
 type RuntimeConfig struct {
 	Name               string
-	ExchangeFactory    exchange.Factory
+	ExchangeFactory    api.ExchangeFactory
 	FuncRegistry       FuncRegistry
 	ComponentRegistry  ComponentRegistry
 	DataFormatRegistry DataFormatRegistry
 	ConverterRegistry  ConverterRegistry
-	Logger             logger.Logger
+	Logger             api.Logger
+	MessageHistory     bool
 }
 
 func NewRuntime(config RuntimeConfig) *Runtime {
@@ -78,6 +81,8 @@ func NewRuntime(config RuntimeConfig) *Runtime {
 		exchangeFactory:    config.ExchangeFactory,
 		converterRegistry:  config.ConverterRegistry,
 		logger:             config.Logger,
+
+		messageHistory: config.MessageHistory,
 
 		routes:    map[string]*route{},
 		endpoints: map[string]api.Endpoint{},
@@ -104,11 +109,9 @@ func NewRuntime(config RuntimeConfig) *Runtime {
 		runtime.dataFormatRegistry = newDataFormatRegistry()
 		runtime.dataFormatRegistry.RegisterDataFormat("json", &dataformat.JSON{})
 		runtime.dataFormatRegistry.RegisterDataFormat("xml", &dataformat.XML{})
-		runtime.dataFormatRegistry.RegisterDataFormat("json2", &dataformat.JSON2{})
-		runtime.dataFormatRegistry.RegisterDataFormat("xml2", &dataformat.XML2{})
 	}
 	if runtime.logger == nil {
-		runtime.logger = logger.NewSlog(slog.New(slog.NewTextHandler(os.Stdout, nil)), logger.LogLevelInfo)
+		runtime.logger = logger.NewSlog(slog.New(slog.NewTextHandler(os.Stdout, nil)), api.LogLevelInfo)
 	}
 	if runtime.converterRegistry == nil {
 		runtime.converterRegistry = NewConverterRegistry()
@@ -217,9 +220,13 @@ func (rt *Runtime) Endpoint(uri string) api.Endpoint {
 func (rt *Runtime) NewExchange(c context.Context) *exchange.Exchange {
 	var newExchange *exchange.Exchange
 	if rt.exchangeFactory == nil {
+		// Default exchange factory
 		newExchange = exchange.NewExchange(c)
 	} else {
 		newExchange = rt.exchangeFactory.NewExchange(c)
+	}
+	if rt.messageHistory {
+		newExchange.Message().SetHeader(exchange.CamelHeaderMessageHistory, exchange.NewMessageHistory())
 	}
 	return newExchange
 }

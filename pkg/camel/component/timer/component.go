@@ -2,12 +2,11 @@ package timer
 
 import (
 	"github.com/paveldanilin/go-camel/pkg/camel/api"
-	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 	u "github.com/paveldanilin/go-camel/pkg/camel/uri"
 )
 
 type Component struct {
-	exchangeFactory exchange.Factory
+	exchangeFactory api.ExchangeFactory
 }
 
 func NewComponent() *Component {
@@ -27,6 +26,6 @@ func (c *Component) CreateEndpoint(uri string) (api.Endpoint, error) {
 	return NewEndpoint(parsedUri, c)
 }
 
-func (c *Component) SetExchangeFactory(f exchange.Factory) {
+func (c *Component) SetExchangeFactory(f api.ExchangeFactory) {
 	c.exchangeFactory = f
 }

@@ -181,7 +181,7 @@ func TestRoute_ConvertBody(t *testing.T) {
 		t.Errorf("TestRoute_ConvertBody(): failed to build 'convertData' step: %s", err)
 	}
 
-	// Register step in camel runtime
+	// Register route in camel runtime
 	err = testCamelRuntime.RegisterRoute(route)
 	if err != nil {
 		t.Errorf("TestRoute_ConvertBody(): failed to register 'convertData' step in runtime: %s", err)

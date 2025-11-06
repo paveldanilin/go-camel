@@ -1,8 +1,8 @@
-package step
+package routestep
 
 import (
 	"fmt"
-	"github.com/paveldanilin/go-camel/pkg/camel/logger"
+	"github.com/paveldanilin/go-camel/pkg/camel/api"
 )
 
 type Log struct {
@@ -12,7 +12,7 @@ type Log struct {
 	// Template lang is supported: ${properties.a}
 	Msg string
 
-	Level logger.LogLevel
+	Level api.LogLevel
 }
 
 func (s *Log) StepName() string {

@@ -5,8 +5,7 @@ import (
 	"github.com/paveldanilin/go-camel/pkg/camel/api"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 	"github.com/paveldanilin/go-camel/pkg/camel/expr"
-	"github.com/paveldanilin/go-camel/pkg/camel/logger"
-	"github.com/paveldanilin/go-camel/pkg/camel/step"
+	"github.com/paveldanilin/go-camel/pkg/camel/routestep"
 )
 
 type Route struct {
@@ -18,8 +17,8 @@ type Route struct {
 // RouteBuilder represents a Route builder.
 type RouteBuilder struct {
 	route *Route
-	stack []*[]api.RouteStep // step stack
-	err   error              // for error tracking
+	stack []*[]api.RouteStep
+	err   error
 }
 
 func NewRoute(name, from string) *RouteBuilder {
@@ -85,7 +84,7 @@ func (b *RouteBuilder) SetBody(stepName string, bodyValue expr.Expression) *Rout
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.SetBody{
+	b.addStep(&routestep.SetBody{
 		Name:      stepName,
 		BodyValue: bodyValue,
 	})
@@ -96,7 +95,7 @@ func (b *RouteBuilder) ConvertBodyTo(stepName string, targetType any, params map
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.ConvertBody{
+	b.addStep(&routestep.ConvertBody{
 		Name:       stepName,
 		TargetType: targetType,
 		Params:     params,
@@ -108,7 +107,7 @@ func (b *RouteBuilder) ConvertBodyToNamed(stepName, typeName string, params map[
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.ConvertBody{
+	b.addStep(&routestep.ConvertBody{
 		Name:      stepName,
 		NamedType: typeName,
 		Params:    params,
@@ -122,7 +121,7 @@ func (b *RouteBuilder) Choice(stepName string) *ChoiceStepBuilder {
 		return &ChoiceStepBuilder{builder: b}
 	}
 
-	choiceStep := &step.Choice{Name: stepName}
+	choiceStep := &routestep.Choice{Name: stepName}
 	b.addStep(choiceStep)
 
 	return &ChoiceStepBuilder{builder: b, choiceStep: choiceStep}
@@ -133,7 +132,7 @@ func (b *RouteBuilder) SetHeader(stepName, headerName string, headerValue expr.E
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.SetHeader{
+	b.addStep(&routestep.SetHeader{
 		Name:        stepName,
 		HeaderName:  headerName,
 		HeaderValue: headerValue,
@@ -147,7 +146,7 @@ func (b *RouteBuilder) Try(stepName string, configure func(b *RouteBuilder)) *Tr
 		return &TryStepBuilder{builder: b}
 	}
 
-	tryStep := &step.Try{Name: stepName}
+	tryStep := &routestep.Try{Name: stepName}
 	b.addStep(tryStep)
 
 	b.pushStack(&tryStep.Steps)
@@ -161,7 +160,7 @@ func (b *RouteBuilder) SetError(stepName string, err error) *RouteBuilder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.SetError{
+	b.addStep(&routestep.SetError{
 		Name:  stepName,
 		Error: err,
 	})
@@ -173,7 +172,7 @@ func (b *RouteBuilder) SetProperty(stepName, propertyName string, propertyValue 
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.SetProperty{
+	b.addStep(&routestep.SetProperty{
 		Name:          stepName,
 		PropertyName:  propertyName,
 		PropertyValue: propertyValue,
@@ -185,7 +184,7 @@ func (b *RouteBuilder) To(stepName, uri string) *RouteBuilder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.To{
+	b.addStep(&routestep.To{
 		Name: stepName,
 		URI:  uri,
 	})
@@ -196,7 +195,7 @@ func (b *RouteBuilder) Unmarshal(stepName string, format string, targetType any)
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.Unmarshal{
+	b.addStep(&routestep.Unmarshal{
 		Name:       stepName,
 		Format:     format,
 		TargetType: targetType,
@@ -208,7 +207,7 @@ func (b *RouteBuilder) Marshal(stepName string, format string) *RouteBuilder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.Marshal{
+	b.addStep(&routestep.Marshal{
 		Name:   stepName,
 		Format: format,
 	})
@@ -219,18 +218,18 @@ func (b *RouteBuilder) Delay(stepName string, durMs int64) *RouteBuilder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.Delay{
+	b.addStep(&routestep.Delay{
 		Name:     stepName,
 		Duration: durMs,
 	})
 	return b
 }
 
-func (b *RouteBuilder) Log(stepName string, level logger.LogLevel, msg string) *RouteBuilder {
+func (b *RouteBuilder) Log(stepName string, level api.LogLevel, msg string) *RouteBuilder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.Log{
+	b.addStep(&routestep.Log{
 		Name:  stepName,
 		Msg:   msg,
 		Level: level,
@@ -239,19 +238,19 @@ func (b *RouteBuilder) Log(stepName string, level logger.LogLevel, msg string) *
 }
 
 func (b *RouteBuilder) LogInfo(stepName, msg string) *RouteBuilder {
-	return b.Log(stepName, logger.LogLevelInfo, msg)
+	return b.Log(stepName, api.LogLevelInfo, msg)
 }
 
 func (b *RouteBuilder) LogWarn(stepName, msg string) *RouteBuilder {
-	return b.Log(stepName, logger.LogLevelWarn, msg)
+	return b.Log(stepName, api.LogLevelWarn, msg)
 }
 
 func (b *RouteBuilder) LogError(stepName, msg string) *RouteBuilder {
-	return b.Log(stepName, logger.LogLevelError, msg)
+	return b.Log(stepName, api.LogLevelError, msg)
 }
 
 func (b *RouteBuilder) LogDebug(stepName, msg string) *RouteBuilder {
-	return b.Log(stepName, logger.LogLevelDebug, msg)
+	return b.Log(stepName, api.LogLevelDebug, msg)
 }
 
 // Func adds FuncStep to the current Route.
@@ -269,7 +268,7 @@ func (b *RouteBuilder) Func(stepName string, userFunc any) *RouteBuilder {
 		panic(fmt.Errorf("userFunc expected string or fn(*Exchange), but got %T", fnt))
 	}
 
-	b.addStep(&step.Fn{
+	b.addStep(&routestep.Fn{
 		Name: stepName,
 		Func: userFunc,
 	})
@@ -282,7 +281,7 @@ func (b *RouteBuilder) Pipeline(stepName string, stopOnError bool, configure fun
 	if b.err != nil {
 		return b
 	}
-	pipe := &step.Pipeline{
+	pipe := &routestep.Pipeline{
 		Name:       stepName,
 		StoOnError: stopOnError,
 		Steps:      []api.RouteStep{},
@@ -302,7 +301,7 @@ func (b *RouteBuilder) Multicast(stepName string) *MulticastStepBuilder {
 		return &MulticastStepBuilder{builder: b}
 	}
 
-	multicastStep := &step.Multicast{
+	multicastStep := &routestep.Multicast{
 		Name:        stepName,
 		Parallel:    false,
 		StopOnError: false,
@@ -317,7 +316,7 @@ func (b *RouteBuilder) Loop(stepName string, predicate expr.Expression, copyExch
 		return b
 	}
 
-	step := &step.Loop{
+	step := &routestep.Loop{
 		Name:         stepName,
 		Predicate:    predicate,
 		CopyExchange: copyExchange,
@@ -331,24 +330,24 @@ func (b *RouteBuilder) Loop(stepName string, predicate expr.Expression, copyExch
 	return b
 }
 
-func (b *RouteBuilder) RemoveHeader(stepName, headerName string) *RouteBuilder {
+func (b *RouteBuilder) RemoveHeader(stepName string, headerName ...string) *RouteBuilder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.RemoveHeader{
-		Name:       stepName,
-		HeaderName: headerName,
+	b.addStep(&routestep.RemoveHeader{
+		Name:        stepName,
+		HeaderNames: headerName,
 	})
 	return b
 }
 
-func (b *RouteBuilder) RemoveProperty(stepName, propertyName string) *RouteBuilder {
+func (b *RouteBuilder) RemoveProperty(stepName string, propertyName ...string) *RouteBuilder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.RemoveProperty{
-		Name:         stepName,
-		PropertyName: propertyName,
+	b.addStep(&routestep.RemoveProperty{
+		Name:          stepName,
+		PropertyNames: propertyName,
 	})
 	return b
 }

@@ -1,9 +1,8 @@
-package step
+package routestep
 
 import (
 	"fmt"
 	"github.com/paveldanilin/go-camel/pkg/camel/api"
-	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 	"strings"
 )
 
@@ -19,7 +18,7 @@ type Multicast struct {
 	Name        string
 	Parallel    bool
 	StopOnError bool
-	Aggregator  exchange.Aggregator
+	Aggregator  api.ExchangeAggregator
 	Outputs     []OutputProcess
 }
 

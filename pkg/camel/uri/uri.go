@@ -127,7 +127,7 @@ func (u *URI) String() string {
 	return u.rawUri
 }
 
-type URIParseOptions struct {
+type ParseOptions struct {
 	// If TRUE - takes the last key.
 	// Default: true
 	LastWins bool
@@ -136,9 +136,9 @@ type URIParseOptions struct {
 	MetaPrefix string
 }
 
-func ParseURI(uri string, opts *URIParseOptions) (*URI, error) {
+func ParseURI(uri string, opts *ParseOptions) (*URI, error) {
 	if opts == nil {
-		opts = &URIParseOptions{LastWins: true, MetaPrefix: "_"}
+		opts = &ParseOptions{LastWins: true, MetaPrefix: "_"}
 	}
 
 	parsed, err := parseURI(uri, opts)
@@ -185,7 +185,7 @@ func ParseURI(uri string, opts *URIParseOptions) (*URI, error) {
 //   - "kafka:topic?brokers=localhost:9092&acks=all"
 //   - "file:/var/log?recursive=true"
 //   - "http://user:pass@host:8080/a/b?x=1#frag"
-func parseURI(uri string, opts *URIParseOptions) (map[string]string, error) {
+func parseURI(uri string, opts *ParseOptions) (map[string]string, error) {
 	if opts.MetaPrefix == "" {
 		opts.MetaPrefix = "_"
 	}

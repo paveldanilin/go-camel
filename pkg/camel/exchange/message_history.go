@@ -1,7 +1,6 @@
 package exchange
 
 import (
-	"sync"
 	"time"
 )
 
@@ -10,7 +9,6 @@ import (
 // The MessageHistory should be part of the message header because it contains system-specific control information.
 // Keeping this information in the header separates it from the message body that contains application specific data.
 type MessageHistory struct {
-	mu      sync.RWMutex
 	records []*MessageHistoryRecord
 }
 
@@ -19,22 +17,19 @@ func NewMessageHistory() *MessageHistory {
 }
 
 func (mh *MessageHistory) AddRecord(r *MessageHistoryRecord) {
-	mh.mu.Lock()
-	defer mh.mu.Unlock()
 	mh.records = append(mh.records, r)
 }
 
 func (mh *MessageHistory) Records() []*MessageHistoryRecord {
-	mh.mu.RLock()
-	defer mh.mu.RUnlock()
+	return mh.records
+}
 
-	// make shallow copy
-	records := make([]*MessageHistoryRecord, len(mh.records))
-	for i, rec := range mh.records {
-		records[i] = rec
+func (mh *MessageHistory) Copy() any {
+	newHistory := &MessageHistory{records: make([]*MessageHistoryRecord, len(mh.records))}
+	for i, r := range mh.records {
+		newHistory.records[i] = r
 	}
-
-	return records
+	return newHistory
 }
 
 type MessageHistoryRecord struct {
