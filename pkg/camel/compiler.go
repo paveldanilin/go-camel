@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"github.com/paveldanilin/go-camel/internal/eip/choice"
 	"github.com/paveldanilin/go-camel/internal/eip/convertbody"
+	"github.com/paveldanilin/go-camel/internal/eip/convertheader"
+	"github.com/paveldanilin/go-camel/internal/eip/convertproperty"
 	"github.com/paveldanilin/go-camel/internal/eip/delay"
 	"github.com/paveldanilin/go-camel/internal/eip/fn"
 	"github.com/paveldanilin/go-camel/internal/eip/log"
@@ -221,6 +223,48 @@ func createProcessor(c compilerConfig, routeName string, s ...api.RouteStep) (ap
 		}
 
 		p := convertbody.NewProcessor(routeName, t.StepName(), targetType, t.Params, c.converterRegistry)
+		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+
+	case *routestep.ConvertHeader:
+		var targetType reflect.Type
+		if t.TargetType != nil {
+			if reflectedType, isReflectType := t.TargetType.(reflect.Type); isReflectType {
+				targetType = reflectedType
+			} else {
+				targetType = reflect.TypeOf(t.TargetType)
+			}
+		} else if t.NamedType != "" {
+			if namedType, existsNamedType := c.converterRegistry.Type(t.NamedType); existsNamedType {
+				targetType = namedType
+			} else {
+				return nil, fmt.Errorf("compiler: unknown target type: %s", t.NamedType)
+			}
+		} else {
+			return nil, errors.New("compiler: no target type")
+		}
+
+		p := convertheader.NewProcessor(routeName, t.StepName(), t.HeaderName, targetType, t.Params, c.converterRegistry)
+		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+
+	case *routestep.ConvertProperty:
+		var targetType reflect.Type
+		if t.TargetType != nil {
+			if reflectedType, isReflectType := t.TargetType.(reflect.Type); isReflectType {
+				targetType = reflectedType
+			} else {
+				targetType = reflect.TypeOf(t.TargetType)
+			}
+		} else if t.NamedType != "" {
+			if namedType, existsNamedType := c.converterRegistry.Type(t.NamedType); existsNamedType {
+				targetType = namedType
+			} else {
+				return nil, fmt.Errorf("compiler: unknown target type: %s", t.NamedType)
+			}
+		} else {
+			return nil, errors.New("compiler: no target type")
+		}
+
+		p := convertproperty.NewProcessor(routeName, t.StepName(), t.PropertyName, targetType, t.Params, c.converterRegistry)
 		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
 	}
 

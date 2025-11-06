@@ -115,6 +115,58 @@ func (b *RouteBuilder) ConvertBodyToNamed(stepName, typeName string, params map[
 	return b
 }
 
+func (b *RouteBuilder) ConvertHeaderTo(stepName, headerName string, targetType any, params map[string]any) *RouteBuilder {
+	if b.err != nil {
+		return b
+	}
+	b.addStep(&routestep.ConvertHeader{
+		Name:       stepName,
+		TargetType: targetType,
+		HeaderName: headerName,
+		Params:     params,
+	})
+	return b
+}
+
+func (b *RouteBuilder) ConvertHeaderToNamed(stepName, headerName, typeName string, params map[string]any) *RouteBuilder {
+	if b.err != nil {
+		return b
+	}
+	b.addStep(&routestep.ConvertHeader{
+		Name:       stepName,
+		NamedType:  typeName,
+		HeaderName: headerName,
+		Params:     params,
+	})
+	return b
+}
+
+func (b *RouteBuilder) ConvertPropertyTo(stepName, propertyName string, targetType any, params map[string]any) *RouteBuilder {
+	if b.err != nil {
+		return b
+	}
+	b.addStep(&routestep.ConvertProperty{
+		Name:         stepName,
+		TargetType:   targetType,
+		PropertyName: propertyName,
+		Params:       params,
+	})
+	return b
+}
+
+func (b *RouteBuilder) ConvertPropertyToNamed(stepName, propertyName, typeName string, params map[string]any) *RouteBuilder {
+	if b.err != nil {
+		return b
+	}
+	b.addStep(&routestep.ConvertProperty{
+		Name:         stepName,
+		NamedType:    typeName,
+		PropertyName: propertyName,
+		Params:       params,
+	})
+	return b
+}
+
 // Choice adds choice step to the current step level.
 func (b *RouteBuilder) Choice(stepName string) *ChoiceStepBuilder {
 	if b.err != nil {
