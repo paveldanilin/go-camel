@@ -356,7 +356,7 @@ func (rt *Runtime) Start() error {
 		}
 
 		// Parse route.from URI and locate component
-		fromUri, err := uri.ParseURI(routeFrom, nil)
+		fromUri, err := uri.Parse(routeFrom, nil)
 		if err != nil {
 			return fmt.Errorf("invalid URI format in route '%s' that consumes from '%s': %w", r.name, routeFrom, err)
 		}
