@@ -11,6 +11,7 @@ import (
 
 type Template struct {
 	tmpl *template.Template
+	vars []string
 }
 
 func (t *Template) Render(data map[string]any) (string, error) {
@@ -22,9 +23,14 @@ func (t *Template) Render(data map[string]any) (string, error) {
 	return buf.String(), nil
 }
 
+func (t *Template) Vars() []string {
+	return t.vars
+}
+
 // Parse parses input string and create Template instance.
 func Parse(input string) (*Template, error) {
 	var builder strings.Builder
+	vars := map[string]struct{}{}
 	resolvers := make(map[string][]pathStep)
 	runes := []rune(input)
 	n := len(runes)
@@ -37,11 +43,11 @@ func Parse(input string) (*Template, error) {
 			for ; i < n && runes[i] != '}'; i++ {
 			}
 			if i == n {
-				return nil, fmt.Errorf("unclosed macro at position %d", pathStart-2)
+				return nil, fmt.Errorf("unclosed variable at position %d", pathStart-2)
 			}
 			path := string(runes[pathStart:i])
 			if path == "" {
-				return nil, fmt.Errorf("empty macro at position %d", pathStart-2)
+				return nil, fmt.Errorf("empty variable at position %d", pathStart-2)
 			}
 
 			steps, err := parsePath(path)
@@ -49,6 +55,8 @@ func Parse(input string) (*Template, error) {
 				return nil, err
 			}
 			resolvers[path] = steps
+
+			vars[path] = struct{}{}
 
 			// {{lookup .path}}
 			builder.WriteString(`{{lookup . "`)
@@ -74,7 +82,15 @@ func Parse(input string) (*Template, error) {
 		return nil, fmt.Errorf("template parse error: %w", err)
 	}
 
-	return &Template{tmpl: parsed}, nil
+	varNames := make([]string, 0, len(vars))
+	for varName := range vars {
+		varNames = append(varNames, varName)
+	}
+
+	return &Template{
+		tmpl: parsed,
+		vars: varNames,
+	}, nil
 }
 
 // HasVars checks if input string contains variables like '${var_name}'.
@@ -131,6 +147,49 @@ func HasVars(input string) bool {
 		}
 		i++ // SKIP single "$"
 	}
+}
+
+func Vars(input string) ([]string, error) {
+	vars := map[string]struct{}{}
+	runes := []rune(input)
+	n := len(runes)
+	i := 0
+
+	for i < n {
+		if runes[i] == '$' && i+1 < n && runes[i+1] == '{' {
+			i += 2
+			pathStart := i
+			for ; i < n && runes[i] != '}'; i++ {
+			}
+			if i == n {
+				return nil, fmt.Errorf("unclosed variable at position %d", pathStart-2)
+			}
+			path := string(runes[pathStart:i])
+			if path == "" {
+				return nil, fmt.Errorf("empty variable at position %d", pathStart-2)
+			}
+
+			vars[path] = struct{}{}
+			i++
+			continue
+		}
+		i++
+	}
+
+	varNames := make([]string, 0, len(vars))
+	for varName := range vars {
+		varNames = append(varNames, varName)
+	}
+
+	return varNames, nil
+}
+
+func Render(input string, data map[string]any) (string, error) {
+	t, err := Parse(input)
+	if err != nil {
+		return "", err
+	}
+	return t.Render(data)
 }
 
 type pathStep struct {
