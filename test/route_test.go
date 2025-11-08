@@ -247,7 +247,7 @@ func TestRoute_SetHeader(t *testing.T) {
 	}
 }
 
-func TestRoute_Env(t *testing.T) {
+func TestRoute_DynamicFrom(t *testing.T) {
 	var testCamelRuntime = camel.NewRuntime(camel.RuntimeConfig{
 		Name: "CamelTestRuntime",
 		Env: env.NewMapEnv(map[string]string{

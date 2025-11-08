@@ -34,6 +34,7 @@ import (
 
 type compilerConfig struct {
 	logger             api.Logger
+	env                api.Env
 	funcRegistry       FuncRegistry
 	dataFormatRegistry DataFormatRegistry
 	converterRegistry  ConverterRegistry
@@ -99,11 +100,7 @@ func createProcessor(c compilerConfig, routeName string, s ...api.RouteStep) (ap
 		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
 
 	case *routestep.To:
-		endpoint := c.endpointRegistry.Endpoint(t.URI)
-		if endpoint == nil {
-			return nil, fmt.Errorf("endpoint not found '%s'", t.URI)
-		}
-		p := to.NewProcessor(routeName, t.StepName(), t.URI, endpoint)
+		p := to.NewProcessor(routeName, t.StepName(), t.URI, c.endpointRegistry, c.env)
 		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
 
 	case *routestep.Pipeline:

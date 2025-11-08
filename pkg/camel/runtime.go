@@ -211,8 +211,9 @@ func (rt *Runtime) RegisterRoute(routeDefinition *Route) error {
 	}
 
 	r, err := compileRoute(compilerConfig{
-		funcRegistry:       rt.funcRegistry,
 		logger:             rt.logger,
+		env:                rt.env,
+		funcRegistry:       rt.funcRegistry,
 		dataFormatRegistry: rt.dataFormatRegistry,
 		converterRegistry:  rt.converterRegistry,
 		endpointRegistry:   rt,
@@ -341,7 +342,7 @@ func (rt *Runtime) Start() error {
 			if rt.env == nil {
 				return fmt.Errorf("failed to resolve variables in route '%s' from '%s': env is nil", r.name, routeFrom)
 			}
-			varNamesAndValues := map[string]any{}
+			varNamesAndValues := make(map[string]any, len(routeFromVars))
 			for _, varName := range routeFromVars {
 				if varValue, varExists := rt.env.LookupVar(varName); varExists {
 					varNamesAndValues[varName] = varValue
@@ -351,7 +352,7 @@ func (rt *Runtime) Start() error {
 			}
 			routeFrom, err = template.Render(routeFrom, varNamesAndValues)
 			if err != nil {
-				return fmt.Errorf("failed to interpolate variables in route '%s' from '%s': %w", r.name, routeFrom, err)
+				return fmt.Errorf("failed to interpolate variables in route '%s' from dynamic '%s': %w", r.name, r.from, err)
 			}
 		}
 
