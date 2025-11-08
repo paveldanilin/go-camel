@@ -80,7 +80,7 @@ func (b *RouteBuilder) popStack() {
 }
 
 // SetBody adds step to set the message body.
-func (b *RouteBuilder) SetBody(stepName string, bodyValue expr.Expression) *RouteBuilder {
+func (b *RouteBuilder) SetBody(stepName string, bodyValue expr.Definition) *RouteBuilder {
 	if b.err != nil {
 		return b
 	}
@@ -180,7 +180,7 @@ func (b *RouteBuilder) Choice(stepName string) *ChoiceStepBuilder {
 }
 
 // SetHeader adds steps to set message header.
-func (b *RouteBuilder) SetHeader(stepName, headerName string, headerValue expr.Expression) *RouteBuilder {
+func (b *RouteBuilder) SetHeader(stepName, headerName string, headerValue expr.Definition) *RouteBuilder {
 	if b.err != nil {
 		return b
 	}
@@ -220,7 +220,7 @@ func (b *RouteBuilder) SetError(stepName string, err error) *RouteBuilder {
 }
 
 // SetProperty adds step to set an exchange property.
-func (b *RouteBuilder) SetProperty(stepName, propertyName string, propertyValue expr.Expression) *RouteBuilder {
+func (b *RouteBuilder) SetProperty(stepName, propertyName string, propertyValue expr.Definition) *RouteBuilder {
 	if b.err != nil {
 		return b
 	}
@@ -363,7 +363,7 @@ func (b *RouteBuilder) Multicast(stepName string) *MulticastStepBuilder {
 	return &MulticastStepBuilder{builder: b, multicastStep: multicastStep}
 }
 
-func (b *RouteBuilder) Loop(stepName string, predicate expr.Expression, copyExchange bool, configure func(b *RouteBuilder)) *RouteBuilder {
+func (b *RouteBuilder) Loop(stepName string, predicate expr.Definition, copyExchange bool, configure func(b *RouteBuilder)) *RouteBuilder {
 	if b.err != nil {
 		return b
 	}

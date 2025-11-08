@@ -203,3 +203,45 @@ func TestRoute_ConvertBody(t *testing.T) {
 
 	fmt.Println(result)
 }
+
+func TestRoute_SetHeader(t *testing.T) {
+	var testCamelRuntime = camel.NewRuntime(camel.RuntimeConfig{Name: "CamelTestRuntime"})
+	testCamelRuntime.MustRegisterComponent(direct.NewComponent())
+
+	defer testCamelRuntime.Stop()
+
+	// Build camel step definition
+	route, err := camel.NewRoute("concat", "direct:concat").
+		SetHeader("", "year", expr.Constant(2025)).
+		SetHeader("", "month", expr.Simple("'11'")).
+		SetHeader("", "day", expr.Func(func(_ *exchange.Exchange) (any, error) {
+			return 8, nil
+		})).
+		SetBody("", expr.Simple("toString(header.year) + '.' + header.month + '.' + toString(header.day)")).
+		Build()
+	if err != nil {
+		t.Fatalf("TestRoute_SetHeader(): failed to build 'concat' step: %s", err)
+	}
+
+	// Register step in camel runtime
+	err = testCamelRuntime.RegisterRoute(route)
+	if err != nil {
+		t.Fatalf("TestRoute_SetHeader(): failed to register 'concat' step in runtime: %s", err)
+	}
+
+	// Start camel runtime
+	err = testCamelRuntime.Start()
+	if err != nil {
+		t.Fatalf("TestRoute_SetHeader(): failed to start camel runtime: %s", err)
+	}
+
+	result, err := testCamelRuntime.SendHeaders(context.TODO(), "direct:concat", nil)
+	if err != nil {
+		t.Fatalf("TestRoute_SetHeader(): failed to call route: %s", err)
+	}
+
+	wantResult := "2025.11.8"
+	if result.Body != wantResult {
+		t.Fatalf("TestRoute_SetHeader(): expected result %v, but got %v", wantResult, result.Body)
+	}
+}
