@@ -28,6 +28,7 @@ import (
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 	"github.com/paveldanilin/go-camel/pkg/camel/expr"
 	"github.com/paveldanilin/go-camel/pkg/camel/routestep"
+	"github.com/paveldanilin/go-camel/pkg/camel/template"
 	"reflect"
 	"strings"
 )
@@ -100,7 +101,30 @@ func createProcessor(c compilerConfig, routeName string, s ...api.RouteStep) (ap
 		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
 
 	case *routestep.To:
-		p := to.NewProcessor(routeName, t.StepName(), t.URI, c.endpointRegistry, c.env)
+		uriVars, err := template.Vars(t.URI)
+		if err != nil {
+			return nil, err
+		}
+
+		var p api.Processor
+		if len(uriVars) == 0 {
+			endpoint := c.endpointRegistry.Endpoint(t.URI)
+			if endpoint == nil {
+				return nil, fmt.Errorf("failed to create 'to' processor: not found endpoint for URI '%s'", t.URI)
+			}
+			producer, producerErr := endpoint.CreateProducer()
+			if producerErr != nil {
+				return nil, fmt.Errorf("failed to create 'to' processor: %w", producerErr)
+			}
+			p = to.NewStaticProcessor(routeName, t.StepName(), producer)
+		} else {
+			uriTpl, uriErr := template.Parse(t.URI)
+			if uriErr != nil {
+				return nil, fmt.Errorf("failed to create 'to' processor: %w", uriErr)
+			}
+
+			p = to.NewDynamicProcessor(routeName, t.StepName(), uriTpl, uriVars, c.endpointRegistry, c.env)
+		}
 		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
 
 	case *routestep.Pipeline:

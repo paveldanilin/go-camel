@@ -10,8 +10,9 @@ import (
 )
 
 type Template struct {
-	tmpl *template.Template
-	vars []string
+	tmpl     *template.Template
+	vars     []string
+	template string
 }
 
 func (t *Template) Render(data map[string]any) (string, error) {
@@ -23,11 +24,20 @@ func (t *Template) Render(data map[string]any) (string, error) {
 	return buf.String(), nil
 }
 
+// Vars returns an unique array of variables (${var_name}).
 func (t *Template) Vars() []string {
 	return t.vars
 }
 
+// Template returns original template as string.
+func (t *Template) Template() string {
+	return t.template
+}
+
 // Parse parses input string and create Template instance.
+// Variable delimiters are: '${' - begin delimiter, '}' - end delimiter.
+//
+//	Example: `Hello, ${username}!`
 func Parse(input string) (*Template, error) {
 	var builder strings.Builder
 	vars := map[string]struct{}{}
@@ -88,8 +98,9 @@ func Parse(input string) (*Template, error) {
 	}
 
 	return &Template{
-		tmpl: parsed,
-		vars: varNames,
+		tmpl:     parsed,
+		vars:     varNames,
+		template: input,
 	}, nil
 }
 
