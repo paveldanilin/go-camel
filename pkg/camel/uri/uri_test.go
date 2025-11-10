@@ -5,7 +5,7 @@ import (
 )
 
 func TestParseURI_CamelStyle(t *testing.T) {
-	uri, err := ParseURI("timer:foo?period=1000", nil)
+	uri, err := Parse("timer:foo?period=1000", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -27,7 +27,7 @@ func TestParseURI_CamelStyle(t *testing.T) {
 }
 
 func TestParseURI_CamelStyleMultiParams(t *testing.T) {
-	uri, err := ParseURI("kafka:topicA?brokers=localhost:9092&acks=all", nil)
+	uri, err := Parse("kafka:topicA?brokers=localhost:9092&acks=all", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -49,7 +49,7 @@ func TestParseURI_CamelStyleMultiParams(t *testing.T) {
 }
 
 func TestParseURI_CamelStyleFile(t *testing.T) {
-	uri, err := ParseURI("file:/var/log?recursive=true", nil)
+	uri, err := Parse("file:/var/log?recursive=true", nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestParseURI_CamelStyleFile(t *testing.T) {
 }
 
 func TestParseURI_RegularURL(t *testing.T) {
-	uri, err := ParseURI("http://john:smith@222.111.222.111:8080/a/b?x=1#frag", nil)
+	uri, err := Parse("http://john:smith@222.111.222.111:8080/a/b?x=1#frag", nil)
 	if err != nil {
 		t.Fatal(err)
 	}

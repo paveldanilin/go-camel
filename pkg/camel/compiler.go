@@ -28,14 +28,16 @@ import (
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 	"github.com/paveldanilin/go-camel/pkg/camel/expr"
 	"github.com/paveldanilin/go-camel/pkg/camel/routestep"
+	"github.com/paveldanilin/go-camel/pkg/camel/template"
 	"reflect"
 	"strings"
 )
 
 type compilerConfig struct {
+	logger             api.Logger
+	env                api.Env
 	funcRegistry       FuncRegistry
 	dataFormatRegistry DataFormatRegistry
-	logger             api.Logger
 	converterRegistry  ConverterRegistry
 	endpointRegistry   EndpointRegistry
 	preProcessor       func(e *exchange.Exchange)
@@ -75,23 +77,54 @@ func createProcessor(c compilerConfig, routeName string, s ...api.RouteStep) (ap
 
 	switch t := s[0].(type) {
 	case *routestep.SetBody:
-		p := setbody.NewProcessor(routeName, t.StepName(), createExpression(t.BodyValue))
+		bodyExpr, err := createExpression(t.BodyValue)
+		if err != nil {
+			return nil, err
+		}
+		p := setbody.NewProcessor(routeName, t.StepName(), bodyExpr)
 		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
 
 	case *routestep.SetHeader:
-		p := setheader.NewProcessor(routeName, t.StepName(), t.HeaderName, createExpression(t.HeaderValue))
+		headerExpr, err := createExpression(t.HeaderValue)
+		if err != nil {
+			return nil, err
+		}
+		p := setheader.NewProcessor(routeName, t.StepName(), t.HeaderName, headerExpr)
 		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
 
 	case *routestep.SetProperty:
-		p := setproperty.NewProcessor(routeName, t.StepName(), t.PropertyName, createExpression(t.PropertyValue))
+		propertyExpr, err := createExpression(t.PropertyValue)
+		if err != nil {
+			return nil, err
+		}
+		p := setproperty.NewProcessor(routeName, t.StepName(), t.PropertyName, propertyExpr)
 		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
 
 	case *routestep.To:
-		endpoint := c.endpointRegistry.Endpoint(t.URI)
-		if endpoint == nil {
-			return nil, fmt.Errorf("endpoint not found '%s'", t.URI)
+		uriVars, err := template.Vars(t.URI)
+		if err != nil {
+			return nil, err
 		}
-		p := to.NewProcessor(routeName, t.StepName(), t.URI, endpoint)
+
+		var p api.Processor
+		if len(uriVars) == 0 {
+			endpoint := c.endpointRegistry.Endpoint(t.URI)
+			if endpoint == nil {
+				return nil, fmt.Errorf("failed to create 'to' processor: not found endpoint for URI '%s'", t.URI)
+			}
+			producer, producerErr := endpoint.CreateProducer()
+			if producerErr != nil {
+				return nil, fmt.Errorf("failed to create 'to' processor: %w", producerErr)
+			}
+			p = to.NewStaticProcessor(routeName, t.StepName(), producer)
+		} else {
+			uriTpl, uriErr := template.Parse(t.URI)
+			if uriErr != nil {
+				return nil, fmt.Errorf("failed to create 'to' processor: %w", uriErr)
+			}
+
+			p = to.NewDynamicProcessor(routeName, t.StepName(), uriTpl, uriVars, c.endpointRegistry, c.env)
+		}
 		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
 
 	case *routestep.Pipeline:
@@ -112,7 +145,12 @@ func createProcessor(c compilerConfig, routeName string, s ...api.RouteStep) (ap
 			if err != nil {
 				return nil, err
 			}
-			p.AddWhen(createExpression(when.Predicate), whenBody)
+
+			prdExpr, err := createExpression(when.Predicate)
+			if err != nil {
+				return nil, err
+			}
+			p.AddWhen(prdExpr, whenBody)
 		}
 		if len(t.Otherwise) > 0 {
 			otherwise, err := createProcessor(c, routeName, t.Otherwise...)
@@ -271,19 +309,24 @@ func createProcessor(c compilerConfig, routeName string, s ...api.RouteStep) (ap
 	return nil, fmt.Errorf("unknown route step: %T", s[0])
 }
 
-func createExpression(expressionDefinition expr.Expression) expression.Expression {
-	switch expressionDefinition.Language {
-	case "simple":
-		se, err := expression.NewSimple(expressionDefinition.Expression.(string))
+func createExpression(def expr.Definition) (expression.Expression, error) {
+	switch def.Kind {
+	case expr.SimpleKind:
+		se, err := expression.NewSimple(def.Expression.(string))
 		if err != nil {
-			panic(fmt.Errorf("camel: expression: simple: %w", err))
+			return nil, fmt.Errorf("failed to create simple expression: %w", err)
 		}
-		return se
-	case "constant":
-		return expression.NewConst(expressionDefinition.Expression)
+		return se, nil
+	case expr.ConstantKind:
+		return expression.NewConst(def.Expression), nil
+	case expr.FuncKind:
+		if funcExpr, isFuncExpr := def.Expression.(func(e *exchange.Exchange) (any, error)); isFuncExpr {
+			return expression.NewFunc(funcExpr), nil
+		}
+		return nil, fmt.Errorf("failed to create func expression: expected type 'func(e *exchange.Exchange) (any, error)', but got %T", def.Expression)
 	}
 
-	panic(fmt.Errorf("camel: expression: unknown language: %s", expressionDefinition.Language))
+	return nil, fmt.Errorf("unknown expression kind: %s", def.Kind)
 }
 
 func createErrMatcher(matcherDefinition errs.Matcher) try.ErrorMatcher {

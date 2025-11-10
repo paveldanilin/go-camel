@@ -8,12 +8,12 @@ import (
 )
 
 type ChoiceWhen struct {
-	Predicate expr.Expression
+	Predicate expr.Definition
 	Steps     []api.RouteStep
 }
 
 func (s *ChoiceWhen) StepName() string {
-	return fmt.Sprintf("choiceWhen[%s:%s]", s.Predicate.Language, s.Predicate.Expression)
+	return fmt.Sprintf("choiceWhen[%s:%s]", s.Predicate.Kind, s.Predicate.Expression)
 }
 
 type Choice struct {

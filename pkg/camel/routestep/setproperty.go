@@ -8,12 +8,12 @@ import (
 type SetProperty struct {
 	Name          string
 	PropertyName  string
-	PropertyValue expr.Expression
+	PropertyValue expr.Definition
 }
 
 func (s *SetProperty) StepName() string {
 	if s.Name == "" {
-		return fmt.Sprintf("setProperty[%s]={%s:%v}", s.PropertyName, s.PropertyValue.Language, s.PropertyValue.Expression)
+		return fmt.Sprintf("setProperty[%s]={%s:%v}", s.PropertyName, s.PropertyValue.Kind, s.PropertyValue.Expression)
 	}
 	return s.Name
 }

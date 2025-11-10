@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestSimpleExpression_Eq(t *testing.T) {
+func TestSimple_Eval(t *testing.T) {
 	e, err := NewSimple("header.a == 1")
 	if err != nil {
 		panic(err)
@@ -20,6 +20,6 @@ func TestSimpleExpression_Eq(t *testing.T) {
 	}
 
 	if ret.(bool) != true {
-		t.Error("TestSimpleExpressionEq() = FALSE; want TRUE")
+		t.Error("TestSimple_Eval() = FALSE; want TRUE")
 	}
 }

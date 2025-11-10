@@ -10,6 +10,7 @@ import (
 	"github.com/paveldanilin/go-camel/pkg/camel/dataformat"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 	"github.com/paveldanilin/go-camel/pkg/camel/logger"
+	"github.com/paveldanilin/go-camel/pkg/camel/template"
 	"github.com/paveldanilin/go-camel/pkg/camel/uri"
 	"log/slog"
 	"os"
@@ -53,10 +54,18 @@ type route struct {
 	producer api.Producer
 }
 
-type Runtime struct {
-	name string
-	mu   sync.RWMutex
+type RuntimeStatus string
 
+const (
+	RuntimeStatusStopped RuntimeStatus = "STOPPED"
+	RuntimeStatusStarted               = "STARTED"
+)
+
+type Runtime struct {
+	mu             sync.RWMutex
+	name           string
+	status         RuntimeStatus
+	env            api.Env
 	messageHistory bool
 
 	funcRegistry       FuncRegistry
@@ -77,6 +86,7 @@ type Runtime struct {
 
 type RuntimeConfig struct {
 	Name               string
+	Env                api.Env
 	ExchangeFactory    api.ExchangeFactory
 	FuncRegistry       FuncRegistry
 	ComponentRegistry  ComponentRegistry
@@ -91,6 +101,7 @@ func NewRuntime(config RuntimeConfig) *Runtime {
 
 	runtime := &Runtime{
 		name:               config.Name,
+		env:                config.Env,
 		funcRegistry:       config.FuncRegistry,
 		componentRegistry:  config.ComponentRegistry,
 		dataFormatRegistry: config.DataFormatRegistry,
@@ -195,13 +206,14 @@ func (rt *Runtime) MustRegisterDataFormat(name string, dataFormat api.DataFormat
 
 func (rt *Runtime) RegisterRoute(routeDefinition *Route) error {
 	if _, exists := rt.routes[routeDefinition.Name]; exists {
-		rt.logger.Error(context.Background(), fmt.Sprintf("Route with headerName '%s' already registered", routeDefinition.Name))
-		return errors.New("step already registered: " + routeDefinition.Name)
+		rt.logger.Error(context.Background(), fmt.Sprintf("Route with name '%s' already registered", routeDefinition.Name))
+		return errors.New("route already registered: " + routeDefinition.Name)
 	}
 
 	r, err := compileRoute(compilerConfig{
-		funcRegistry:       rt.funcRegistry,
 		logger:             rt.logger,
+		env:                rt.env,
+		funcRegistry:       rt.funcRegistry,
 		dataFormatRegistry: rt.dataFormatRegistry,
 		converterRegistry:  rt.converterRegistry,
 		endpointRegistry:   rt,
@@ -311,32 +323,65 @@ func (rt *Runtime) Start() error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
 
+	if rt.status == RuntimeStatusStarted {
+		rt.logger.Error(context.Background(), fmt.Sprintf("Failed to start camel runtime '%s': already started", rt.name))
+		return fmt.Errorf("failed to start camel runtime '%s': already started", rt.name)
+	}
+
+	rt.logger.Info(context.Background(), fmt.Sprintf("Camel runtime '%s' starting...", rt.name))
+
 	for _, r := range rt.routes {
-		fromUri, err := uri.ParseURI(r.from, nil)
+		// Check if route.from contains variables (${var_name}), resolve values
+		routeFrom := r.from
+		routeFromVars, err := template.Vars(routeFrom)
 		if err != nil {
-			return fmt.Errorf("invalid URI format in step '%s' that consumes from '%s': %w", r.name, r.from, err)
+			return fmt.Errorf("failed to resolve variables in route '%s' from '%s': %w", r.name, routeFrom, err)
+		}
+		// resolve variables
+		if len(routeFromVars) > 0 {
+			if rt.env == nil {
+				return fmt.Errorf("failed to resolve variables in route '%s' from '%s': env is nil", r.name, routeFrom)
+			}
+			varNamesAndValues := make(map[string]any, len(routeFromVars))
+			for _, varName := range routeFromVars {
+				if varValue, varExists := rt.env.LookupVar(varName); varExists {
+					varNamesAndValues[varName] = varValue
+				} else {
+					// TODO: error
+				}
+			}
+			routeFrom, err = template.Render(routeFrom, varNamesAndValues)
+			if err != nil {
+				return fmt.Errorf("failed to interpolate variables in route '%s' from dynamic '%s': %w", r.name, r.from, err)
+			}
+		}
+
+		// Parse route.from URI and locate component
+		fromUri, err := uri.Parse(routeFrom, nil)
+		if err != nil {
+			return fmt.Errorf("invalid URI format in route '%s' that consumes from '%s': %w", r.name, routeFrom, err)
 		}
 
 		// Resolve component
 		component := rt.componentRegistry.Component(fromUri.Component())
 		if component == nil {
-			return fmt.Errorf("component '%s' not found in step '%s' that consumes from '%s'", fromUri.Component(), r.name, r.from)
+			return fmt.Errorf("component '%s' not found in step '%s' that consumes from '%s'", fromUri.Component(), r.name, routeFrom)
 		}
 
 		// Resolve/create endpoint
-		endpoint, endpointExists := rt.endpoints[r.from]
+		endpoint, endpointExists := rt.endpoints[routeFrom]
 		if !endpointExists {
-			endpoint, err = component.CreateEndpoint(r.from)
+			endpoint, err = component.CreateEndpoint(routeFrom)
 			if err != nil {
-				return fmt.Errorf("failed to create endpoint in step '%s' that consumes from '%s': %w", r.name, r.from, err)
+				return fmt.Errorf("failed to create endpoint in step '%s' that consumes from '%s': %w", r.name, routeFrom, err)
 			}
-			rt.endpoints[r.from] = endpoint
+			rt.endpoints[routeFrom] = endpoint
 		}
 
 		// Create consumer
 		consumer, err := endpoint.CreateConsumer(r.producer)
 		if err != nil {
-			return fmt.Errorf("failed to create consumer in step '%s' that consumes from '%s': %w", r.name, r.from, err)
+			return fmt.Errorf("failed to create consumer in step '%s' that consumes from '%s': %w", r.name, routeFrom, err)
 		}
 		rt.consumers = append(rt.consumers, consumer)
 	}
@@ -349,6 +394,7 @@ func (rt *Runtime) Start() error {
 	}
 
 	rt.logger.Info(context.Background(), fmt.Sprintf("Camel runtime '%s' started", rt.name))
+	rt.status = RuntimeStatusStarted
 
 	return nil
 }
@@ -356,6 +402,13 @@ func (rt *Runtime) Start() error {
 func (rt *Runtime) Stop() error {
 	rt.mu.Lock()
 	defer rt.mu.Unlock()
+
+	if rt.status == RuntimeStatusStopped {
+		rt.logger.Error(context.Background(), fmt.Sprintf("Failed to stop camel runtime '%s': already stopped", rt.name))
+		return fmt.Errorf("failed to stop camel runtime '%s': already stopped", rt.name)
+	}
+
+	rt.logger.Info(context.Background(), fmt.Sprintf("Camel runtime '%s' stopping...", rt.name))
 
 	rt.cancel()
 
@@ -370,6 +423,7 @@ func (rt *Runtime) Stop() error {
 	rt.routes = nil
 
 	rt.logger.Info(context.Background(), fmt.Sprintf("Camel runetime '%s' stopped", rt.name))
+	rt.status = RuntimeStatusStopped
 
 	return nil
 }

@@ -12,7 +12,7 @@ type ChoiceStepBuilder struct {
 }
 
 // When adds ChoiceWhen block to the current ChoiceStep and returns ChoiceStepBuilder.
-func (cb *ChoiceStepBuilder) When(predicate expr.Expression, configure func(b *RouteBuilder)) *ChoiceStepBuilder {
+func (cb *ChoiceStepBuilder) When(predicate expr.Definition, configure func(b *RouteBuilder)) *ChoiceStepBuilder {
 	if cb.builder.err != nil {
 		return cb
 	}

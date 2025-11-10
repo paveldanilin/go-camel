@@ -67,3 +67,7 @@ type ExchangeAggregator interface {
 type ExchangeFactory interface {
 	NewExchange(c context.Context) *exchange.Exchange
 }
+
+type Env interface {
+	LookupVar(name string) (string, bool)
+}

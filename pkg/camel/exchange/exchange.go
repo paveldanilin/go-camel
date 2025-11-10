@@ -156,6 +156,16 @@ func (e *Exchange) Copy() *Exchange {
 	}
 }
 
+// AsMap returns Exchange's data as map.
+//
+// Keys:
+//
+//	id 			- Message is
+//	exchangeId 	- Exchange id
+//	body 		- Message body
+//	header 		- Message headers map (k-v)
+//	error		- Exchange error
+//	property	- Exchange properties map (kv-)
 func (e *Exchange) AsMap() map[string]any {
 	return map[string]any{
 		"id":         e.Message().Id(),

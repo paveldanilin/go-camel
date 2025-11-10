@@ -136,12 +136,12 @@ type ParseOptions struct {
 	MetaPrefix string
 }
 
-func ParseURI(uri string, opts *ParseOptions) (*URI, error) {
+func Parse(uri string, opts *ParseOptions) (*URI, error) {
 	if opts == nil {
 		opts = &ParseOptions{LastWins: true, MetaPrefix: "_"}
 	}
 
-	parsed, err := parseURI(uri, opts)
+	parsed, err := parse(uri, opts)
 	if err != nil {
 		return nil, err
 	}
@@ -179,13 +179,13 @@ func ParseURI(uri string, opts *ParseOptions) (*URI, error) {
 	return u, nil
 }
 
-// parseURI decodes Camel-like URI and returns map[string]string.
+// parse decodes Camel-like URI and returns map[string]string.
 // Input examples:
 //   - "timer:foo?period=1000"
 //   - "kafka:topic?brokers=localhost:9092&acks=all"
 //   - "file:/var/log?recursive=true"
 //   - "http://user:pass@host:8080/a/b?x=1#frag"
-func parseURI(uri string, opts *ParseOptions) (map[string]string, error) {
+func parse(uri string, opts *ParseOptions) (map[string]string, error) {
 	if opts.MetaPrefix == "" {
 		opts.MetaPrefix = "_"
 	}

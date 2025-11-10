@@ -20,7 +20,7 @@ type profile struct {
 	Products []product
 }
 
-func TestTemplate(t *testing.T) {
+func TestTemplate_Render(t *testing.T) {
 	data := map[string]any{
 		"a": "valueA",
 		"person": map[string]any{
@@ -95,5 +95,31 @@ func TestHasVars(t *testing.T) {
 
 	if expectedValue != result {
 		t.Errorf("expected bool value %v, but got %v", expectedValue, result)
+	}
+}
+
+func TestVars_NoVars(t *testing.T) {
+	input := "Hello, user!"
+
+	vars, err := Vars(input)
+	if err != nil {
+		t.Fatalf("TestVars_NoVars(): %s", err)
+	}
+
+	if len(vars) != 0 {
+		t.Fatalf("TestVars_NoVars(): expected 0 variables, but got %d", len(vars))
+	}
+}
+
+func TestVars(t *testing.T) {
+	input := "Hello, ${username}! Today is ${day}."
+
+	vars, err := Vars(input)
+	if err != nil {
+		t.Fatalf("TestVars(): %s", err)
+	}
+
+	if len(vars) != 2 {
+		t.Fatalf("TestVars(): expected 2 variables, but got %d", len(vars))
 	}
 }
