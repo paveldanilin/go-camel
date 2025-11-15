@@ -28,6 +28,20 @@ func NewProcessor(p api.Processor, preProcessor func(*exchange.Exchange), postPr
 	}
 }
 
+func (p *Processor) Name() string {
+	if n, isNamed := p.delegate.(named); isNamed {
+		return n.Name()
+	}
+	return fmt.Sprintf("%T", p.delegate)
+}
+
+func (p *Processor) RouteName() string {
+	if r, isRouted := p.delegate.(routed); isRouted {
+		return r.RouteName()
+	}
+	return fmt.Sprintf("%T", p.delegate)
+}
+
 func (p *Processor) Process(e *exchange.Exchange) {
 	// Check if exchange supports MessageHistory
 	if mh, supportsMessageHistory := e.Message().Header(exchange.CamelHeaderMessageHistory); supportsMessageHistory {
@@ -55,18 +69,4 @@ func (p *Processor) Process(e *exchange.Exchange) {
 	}
 
 	p.delegate.Process(e)
-}
-
-func (p *Processor) Name() string {
-	if n, isNamed := p.delegate.(named); isNamed {
-		return n.Name()
-	}
-	return fmt.Sprintf("%T", p.delegate)
-}
-
-func (p *Processor) RouteName() string {
-	if r, isRouted := p.delegate.(routed); isRouted {
-		return r.RouteName()
-	}
-	return fmt.Sprintf("%T", p.delegate)
 }

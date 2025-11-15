@@ -9,8 +9,8 @@ import (
 
 func TestChoiceProcessor(t *testing.T) {
 	c := NewProcessor("", "test val").
-		AddWhen(expression.MustSimple("header.val > 5"), setbody.NewProcessor("", "", expression.NewConst(555))).
-		AddWhen(expression.MustSimple("header.val < 5"), setbody.NewProcessor("", "", expression.NewConst(777)))
+		AddWhen(expression.MustSimple("header.val > 5"), setbody.NewProcessor("", "", expression.NewConstant(555))).
+		AddWhen(expression.MustSimple("header.val < 5"), setbody.NewProcessor("", "", expression.NewConstant(777)))
 
 	e := exchange.NewExchange(nil)
 	e.Message().SetHeader("val", 2)

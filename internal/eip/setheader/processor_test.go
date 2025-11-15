@@ -7,7 +7,7 @@ import (
 )
 
 func TestSetHeaderProcessor(t *testing.T) {
-	p := NewProcessor("test", "test", "abc", expression.NewConst(3310))
+	p := NewProcessor("test", "test", "abc", expression.NewConstant(3310))
 
 	e := exchange.NewExchange(nil)
 

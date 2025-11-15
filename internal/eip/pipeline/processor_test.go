@@ -10,8 +10,8 @@ import (
 
 func TestPipelineProcessor(t *testing.T) {
 	sum := NewProcessor("", "sum", false).
-		AddProcessor(setheader.NewProcessor("", "set a", "a", expression.NewConst(1))).
-		AddProcessor(setheader.NewProcessor("", "set b", "b", expression.NewConst(1))).
+		AddProcessor(setheader.NewProcessor("", "set a", "a", expression.NewConstant(1))).
+		AddProcessor(setheader.NewProcessor("", "set b", "b", expression.NewConstant(1))).
 		AddProcessor(fn.NewProcessor("", "calc", func(e *exchange.Exchange) {
 
 			a, _ := e.Message().Header("a")

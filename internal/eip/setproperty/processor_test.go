@@ -7,7 +7,7 @@ import (
 )
 
 func TestSetPropertyProcessor(t *testing.T) {
-	p := NewProcessor("test", "test", "MY_PROPERTY", expression.NewConst("MY_PROPERTY_VALUE"))
+	p := NewProcessor("test", "test", "MY_PROPERTY", expression.NewConstant("MY_PROPERTY_VALUE"))
 
 	e := exchange.NewExchange(nil)
 

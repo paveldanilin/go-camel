@@ -15,14 +15,14 @@ func TestDoTryProcessor_Error(t *testing.T) {
 	var mandatoryParameterMissingErr = errors.New("mandatory parameter missing")
 
 	tryBlock := NewProcessor("", "critical section").
-		AddProcessor(setheader.NewProcessor("", "set a", "a", expression.NewConst(1))).
-		AddProcessor(setheader.NewProcessor("", "set b", "b", expression.NewConst(1))).
+		AddProcessor(setheader.NewProcessor("", "set a", "a", expression.NewConstant(1))).
+		AddProcessor(setheader.NewProcessor("", "set b", "b", expression.NewConstant(1))).
 		AddProcessor(setbody.NewProcessor("", "set body", expression.MustSimple("header.a + header.b"))).
 		AddProcessor(choice.NewProcessor("", "test body").
 			AddWhen(expression.MustSimple("body == 2"), seterror.NewProcessor("", "", mandatoryParameterMissingErr)),
 		).
 		AddCatch(ErrorContains("mandatory parameter missing"), setheader.NewProcessor("", "", "ERROR", expression.MustSimple("error"))).
-		AddFinally(setbody.NewProcessor("", "", expression.NewConst("RESULT")))
+		AddFinally(setbody.NewProcessor("", "", expression.NewConstant("RESULT")))
 
 	e := exchange.NewExchange(nil)
 

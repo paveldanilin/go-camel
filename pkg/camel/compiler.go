@@ -320,7 +320,7 @@ func createExpression(def expr.Definition) (expression.Expression, error) {
 		}
 		return se, nil
 	case expr.ConstantKind:
-		return expression.NewConst(def.Expression), nil
+		return expression.NewConstant(def.Expression), nil
 	case expr.FuncKind:
 		if funcExpr, isFuncExpr := def.Expression.(func(e *exchange.Exchange) (any, error)); isFuncExpr {
 			return expression.NewFunc(funcExpr), nil
