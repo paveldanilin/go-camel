@@ -1,23 +1,23 @@
-package camel
+package route
 
 import (
 	"fmt"
-	"github.com/paveldanilin/go-camel/pkg/camel/errmatcher"
-	"github.com/paveldanilin/go-camel/pkg/camel/routestep"
+	"github.com/paveldanilin/go-camel/pkg/camel/route/errmatcher"
+	"github.com/paveldanilin/go-camel/pkg/camel/route/step"
 )
 
 type TryStepBuilder struct {
-	builder *RouteBuilder
-	tryStep *routestep.Try
+	builder *Builder
+	tryStep *step.Try
 }
 
 // Catch adds 'catch' to the current TryStep.
-func (tb *TryStepBuilder) Catch(errorMatcher errmatcher.Definition, configure func(b *RouteBuilder)) *TryStepBuilder {
+func (tb *TryStepBuilder) Catch(errorMatcher errmatcher.Definition, configure func(b *Builder)) *TryStepBuilder {
 	if tb.builder.err != nil {
 		return tb
 	}
 
-	catchClause := routestep.CatchWhen{ErrorMatcher: errorMatcher}
+	catchClause := step.CatchWhen{ErrorMatcher: errorMatcher}
 
 	tb.builder.pushStack(&catchClause.Steps)
 	configure(tb.builder)
@@ -29,12 +29,12 @@ func (tb *TryStepBuilder) Catch(errorMatcher errmatcher.Definition, configure fu
 }
 
 // Finally adds 'finally' and returns to the main builder.
-func (tb *TryStepBuilder) Finally(configure func(b *RouteBuilder)) *RouteBuilder {
+func (tb *TryStepBuilder) Finally(configure func(b *Builder)) *Builder {
 	if tb.builder.err != nil {
 		return tb.builder
 	}
 	if tb.tryStep.FinallySteps != nil {
-		tb.builder.err = fmt.Errorf("routestep Try '%s' already has block Finally", tb.tryStep.Name)
+		tb.builder.err = fmt.Errorf("step Try '%s' already has block Finally", tb.tryStep.Name)
 		return tb.builder
 	}
 
@@ -45,6 +45,6 @@ func (tb *TryStepBuilder) Finally(configure func(b *RouteBuilder)) *RouteBuilder
 	return tb.builder // main builder
 }
 
-func (tb *TryStepBuilder) EndTry() *RouteBuilder {
+func (tb *TryStepBuilder) EndTry() *Builder {
 	return tb.builder
 }

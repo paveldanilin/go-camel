@@ -51,5 +51,5 @@ func (p *logProcessor) Process(e *exchange.Exchange) {
 		return
 	}
 
-	p.logger.Log(e.Context(), p.level, msg, "routestep", p.routeName, "processor", p.name)
+	p.logger.Log(e.Context(), p.level, msg, "step", p.routeName, "processor", p.name)
 }

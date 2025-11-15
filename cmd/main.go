@@ -6,9 +6,10 @@ import (
 	"github.com/paveldanilin/go-camel/pkg/camel"
 	"github.com/paveldanilin/go-camel/pkg/camel/component/direct"
 	"github.com/paveldanilin/go-camel/pkg/camel/component/timer"
-	"github.com/paveldanilin/go-camel/pkg/camel/errmatcher"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
-	"github.com/paveldanilin/go-camel/pkg/camel/expr"
+	"github.com/paveldanilin/go-camel/pkg/camel/route"
+	"github.com/paveldanilin/go-camel/pkg/camel/route/errmatcher"
+	"github.com/paveldanilin/go-camel/pkg/camel/route/expr"
 	"time"
 )
 
@@ -28,26 +29,26 @@ func main() {
 	r, err := camel.NewRoute("sum", "direct:sum").
 		SetBody("calc sum", expr.Simple("header.a + header.b")).
 		Choice("test sum result").
-		When(expr.Simple("body == 40"), func(b *camel.RouteBuilder) {
+		When(expr.Simple("body == 40"), func(b *route.Builder) {
 			b.Delay("", 2500)
 			b.SetBody("double body value", expr.Simple("body * 2"))
 		}).
-		Otherwise(func(b *camel.RouteBuilder) {
+		Otherwise(func(b *route.Builder) {
 			b.SetBody("x*4", expr.Simple("body * 4"))
 		}).
-		Try("", func(b *camel.RouteBuilder) {
+		Try("", func(b *route.Builder) {
 			b.Func("x10", "x10Func")
 		}).
-		Catch(errmatcher.Any(), func(b *camel.RouteBuilder) {
+		Catch(errmatcher.Any(), func(b *route.Builder) {
 			b.SetBody("xxx", expr.Simple("'>>' + error.Error() + '<<'"))
 		}).
 		EndTry().
 		Multicast("multi tasks").ParallelProcessing().
-		Process(func(b *camel.RouteBuilder) {
+		Process(func(b *route.Builder) {
 			b.Delay("", 15000)
 			b.LogWarn("", "xxx> ${body}")
 		}).
-		Process(func(b *camel.RouteBuilder) {
+		Process(func(b *route.Builder) {
 			b.Delay("", 5000)
 			b.SetProperty("setGame", "game", expr.Constant("DooM"))
 			b.LogInfo("", "yy>>${body}>>${property.game}")
@@ -58,8 +59,8 @@ func main() {
 		panic(err)
 	}
 
-	/*getDepth := fn(routestep camel.RouteStep, depth int) error {
-		fmt.Printf("%s> %s [%T]\n", strings.Repeat("-", depth+1), routestep.StepName(), routestep)
+	/*getDepth := fn(step camel.RouteStep, depth int) error {
+		fmt.Printf("%s> %s [%T]\n", strings.Repeat("-", depth+1), step.StepName(), step)
 		return nil
 	}
 	_ = camel.WalkRoute(r, getDepth)*/

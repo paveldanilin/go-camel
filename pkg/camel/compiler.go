@@ -23,11 +23,13 @@ import (
 	"github.com/paveldanilin/go-camel/internal/eip/try"
 	"github.com/paveldanilin/go-camel/internal/eip/unmarshal"
 	"github.com/paveldanilin/go-camel/internal/expression"
+	"github.com/paveldanilin/go-camel/internal/processor"
 	"github.com/paveldanilin/go-camel/pkg/camel/api"
-	"github.com/paveldanilin/go-camel/pkg/camel/errmatcher"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
-	"github.com/paveldanilin/go-camel/pkg/camel/expr"
-	"github.com/paveldanilin/go-camel/pkg/camel/routestep"
+	"github.com/paveldanilin/go-camel/pkg/camel/route"
+	"github.com/paveldanilin/go-camel/pkg/camel/route/errmatcher"
+	"github.com/paveldanilin/go-camel/pkg/camel/route/expr"
+	"github.com/paveldanilin/go-camel/pkg/camel/route/step"
 	"github.com/paveldanilin/go-camel/pkg/camel/template"
 	"reflect"
 	"strings"
@@ -44,14 +46,14 @@ type compilerConfig struct {
 	postProcessor      func(e *exchange.Exchange)
 }
 
-// compileRoute takes Route definition and returns runtime representation of the route.
-func compileRoute(c compilerConfig, routeDefinition *Route) (*route, error) {
+// compileRoute converts a set of route.Definition to a set of api.Processor.
+func compileRoute(c compilerConfig, routeDefinition *route.Definition) (*rtRoute, error) {
 	producer, err := createProcessor(c, routeDefinition.Name, routeDefinition.Steps...)
 	if err != nil {
 		return nil, err
 	}
 
-	return &route{
+	return &rtRoute{
 		name:     routeDefinition.Name,
 		from:     routeDefinition.From,
 		producer: producer,
@@ -72,35 +74,35 @@ func createProcessor(c compilerConfig, routeName string, s ...api.RouteStep) (ap
 			}
 			pipe.AddProcessor(p)
 		}
-		return decorateProcessor(pipe, c.preProcessor, c.postProcessor), nil
+		return processor.NewProcessor(pipe, c.preProcessor, c.postProcessor), nil
 	}
 
 	switch t := s[0].(type) {
-	case *routestep.SetBody:
+	case *step.SetBody:
 		bodyExpr, err := createExpression(t.BodyValue)
 		if err != nil {
 			return nil, err
 		}
 		p := setbody.NewProcessor(routeName, t.StepName(), bodyExpr)
-		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
 
-	case *routestep.SetHeader:
+	case *step.SetHeader:
 		headerExpr, err := createExpression(t.HeaderValue)
 		if err != nil {
 			return nil, err
 		}
 		p := setheader.NewProcessor(routeName, t.StepName(), t.HeaderName, headerExpr)
-		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
 
-	case *routestep.SetProperty:
+	case *step.SetProperty:
 		propertyExpr, err := createExpression(t.PropertyValue)
 		if err != nil {
 			return nil, err
 		}
 		p := setproperty.NewProcessor(routeName, t.StepName(), t.PropertyName, propertyExpr)
-		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
 
-	case *routestep.To:
+	case *step.To:
 		uriVars, err := template.Vars(t.URI)
 		if err != nil {
 			return nil, err
@@ -125,9 +127,9 @@ func createProcessor(c compilerConfig, routeName string, s ...api.RouteStep) (ap
 
 			p = to.NewDynamicProcessor(routeName, t.StepName(), uriTpl, uriVars, c.endpointRegistry, c.env)
 		}
-		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
 
-	case *routestep.Pipeline:
+	case *step.Pipeline:
 		pipe := pipeline.NewProcessor(routeName, t.StepName(), t.StoOnError)
 		for _, innerStep := range t.Steps {
 			p, err := createProcessor(c, routeName, innerStep)
@@ -136,9 +138,9 @@ func createProcessor(c compilerConfig, routeName string, s ...api.RouteStep) (ap
 			}
 			pipe.AddProcessor(p)
 		}
-		return decorateProcessor(pipe, c.preProcessor, c.postProcessor), nil
+		return processor.NewProcessor(pipe, c.preProcessor, c.postProcessor), nil
 
-	case *routestep.Choice:
+	case *step.Choice:
 		p := choice.NewProcessor(routeName, t.StepName())
 		for _, when := range t.WhenCases {
 			whenBody, err := createProcessor(c, routeName, when.Steps...)
@@ -159,9 +161,9 @@ func createProcessor(c compilerConfig, routeName string, s ...api.RouteStep) (ap
 			}
 			p.SetOtherwise(otherwise)
 		}
-		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
 
-	case *routestep.Try:
+	case *step.Try:
 		p := try.NewProcessor(routeName, t.StepName())
 
 		for _, tryStep := range t.Steps {
@@ -187,31 +189,31 @@ func createProcessor(c compilerConfig, routeName string, s ...api.RouteStep) (ap
 			}
 			p.AddFinally(finallyProcessor)
 		}
-		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
 
-	case *routestep.Fn:
+	case *step.Fn:
 		if inlineFunc, isInlineFunc := t.Func.(func(*exchange.Exchange)); isInlineFunc {
-			return decorateProcessor(fn.NewProcessor(routeName, t.StepName(), inlineFunc), c.preProcessor, c.postProcessor), nil
+			return processor.NewProcessor(fn.NewProcessor(routeName, t.StepName(), inlineFunc), c.preProcessor, c.postProcessor), nil
 		}
 		if storedFuncName, isStoredFunc := t.Func.(string); isStoredFunc {
 			storedFunc := c.funcRegistry.Func(storedFuncName)
 			if storedFunc == nil {
-				return nil, fmt.Errorf("fn routestep: %s: function not found in registry: %s, try to register it first RegisterFunc/MustRegisterFunc",
+				return nil, fmt.Errorf("fn step: %s: function not found in registry: %s, try to register it first RegisterFunc/MustRegisterFunc",
 					t.StepName(), storedFuncName)
 			}
-			return decorateProcessor(fn.NewProcessor(routeName, t.StepName(), storedFunc), c.preProcessor, c.postProcessor), nil
+			return processor.NewProcessor(fn.NewProcessor(routeName, t.StepName(), storedFunc), c.preProcessor, c.postProcessor), nil
 		}
-		return nil, fmt.Errorf("fn routestep: %s: expected function signature 'fn(*Exchange)'", t.StepName())
+		return nil, fmt.Errorf("fn step: %s: expected function signature 'fn(*Exchange)'", t.StepName())
 
-	case *routestep.SetError:
+	case *step.SetError:
 		p := seterror.NewProcessor(routeName, t.StepName(), t.Error)
-		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
 
-	case *routestep.Delay:
+	case *step.Delay:
 		p := delay.NewProcessor(routeName, t.StepName(), t.Duration)
-		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
 
-	case *routestep.Multicast:
+	case *step.Multicast:
 		p := multicast.NewProcessor(routeName, t.StepName(), t.Parallel, t.StopOnError, t.Aggregator)
 		for _, output := range t.Outputs {
 			outputProcessor, err := createProcessor(c, routeName, output.Steps...)
@@ -220,29 +222,29 @@ func createProcessor(c compilerConfig, routeName string, s ...api.RouteStep) (ap
 			}
 			p.AddOutput(outputProcessor)
 		}
-		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
 
-	case *routestep.Log:
+	case *step.Log:
 		p := log.NewProcessor(routeName, t.StepName(), t.Msg, t.Level, c.logger)
-		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
 
-	case *routestep.RemoveHeader:
+	case *step.RemoveHeader:
 		p := removeheader.NewProcessor(routeName, t.StepName(), t.HeaderNames...)
-		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
 
-	case *routestep.RemoveProperty:
+	case *step.RemoveProperty:
 		p := removeproperty.NewProcessor(routeName, t.StepName(), t.PropertyNames...)
-		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
 
-	case *routestep.Marshal:
+	case *step.Marshal:
 		p := marshal.NewProcessor(routeName, t.StepName(), c.dataFormatRegistry.DataFormat(t.Format))
-		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
 
-	case *routestep.Unmarshal:
+	case *step.Unmarshal:
 		p := unmarshal.NewProcessor(routeName, t.StepName(), t.TargetType, c.dataFormatRegistry.DataFormat(t.Format))
-		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
 
-	case *routestep.ConvertBody:
+	case *step.ConvertBody:
 		var targetType reflect.Type
 		if t.TargetType != nil {
 			if reflectedType, isReflectType := t.TargetType.(reflect.Type); isReflectType {
@@ -261,9 +263,9 @@ func createProcessor(c compilerConfig, routeName string, s ...api.RouteStep) (ap
 		}
 
 		p := convertbody.NewProcessor(routeName, t.StepName(), targetType, t.Params, c.converterRegistry)
-		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
 
-	case *routestep.ConvertHeader:
+	case *step.ConvertHeader:
 		var targetType reflect.Type
 		if t.TargetType != nil {
 			if reflectedType, isReflectType := t.TargetType.(reflect.Type); isReflectType {
@@ -282,9 +284,9 @@ func createProcessor(c compilerConfig, routeName string, s ...api.RouteStep) (ap
 		}
 
 		p := convertheader.NewProcessor(routeName, t.StepName(), t.HeaderName, targetType, t.Params, c.converterRegistry)
-		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
 
-	case *routestep.ConvertProperty:
+	case *step.ConvertProperty:
 		var targetType reflect.Type
 		if t.TargetType != nil {
 			if reflectedType, isReflectType := t.TargetType.(reflect.Type); isReflectType {
@@ -303,7 +305,7 @@ func createProcessor(c compilerConfig, routeName string, s ...api.RouteStep) (ap
 		}
 
 		p := convertproperty.NewProcessor(routeName, t.StepName(), t.PropertyName, targetType, t.Params, c.converterRegistry)
-		return decorateProcessor(p, c.preProcessor, c.postProcessor), nil
+		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
 	}
 
 	return nil, fmt.Errorf("unknown route step: %T", s[0])

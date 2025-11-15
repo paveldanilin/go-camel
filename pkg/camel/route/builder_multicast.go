@@ -1,13 +1,13 @@
-package camel
+package route
 
 import (
 	"github.com/paveldanilin/go-camel/pkg/camel/api"
-	"github.com/paveldanilin/go-camel/pkg/camel/routestep"
+	"github.com/paveldanilin/go-camel/pkg/camel/route/step"
 )
 
 type MulticastStepBuilder struct {
-	builder       *RouteBuilder
-	multicastStep *routestep.Multicast
+	builder       *Builder
+	multicastStep *step.Multicast
 }
 
 func (mb *MulticastStepBuilder) ParallelProcessing() *MulticastStepBuilder {
@@ -30,12 +30,12 @@ func (mb *MulticastStepBuilder) Aggregator(aggregator api.ExchangeAggregator) *M
 	return mb
 }
 
-func (mb *MulticastStepBuilder) Process(configure func(b *RouteBuilder)) *MulticastStepBuilder {
+func (mb *MulticastStepBuilder) Process(configure func(b *Builder)) *MulticastStepBuilder {
 	if mb.builder.err != nil {
 		return mb
 	}
 
-	outputProcess := routestep.OutputProcess{Steps: []api.RouteStep{}}
+	outputProcess := step.OutputProcess{Steps: []api.RouteStep{}}
 
 	mb.builder.pushStack(&outputProcess.Steps)
 	configure(mb.builder)
@@ -46,6 +46,6 @@ func (mb *MulticastStepBuilder) Process(configure func(b *RouteBuilder)) *Multic
 	return mb
 }
 
-func (mb *MulticastStepBuilder) EndMulticast() *RouteBuilder {
+func (mb *MulticastStepBuilder) EndMulticast() *Builder {
 	return mb.builder
 }

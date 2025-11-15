@@ -10,6 +10,7 @@ import (
 	"github.com/paveldanilin/go-camel/pkg/camel/dataformat"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 	"github.com/paveldanilin/go-camel/pkg/camel/logger"
+	"github.com/paveldanilin/go-camel/pkg/camel/route"
 	"github.com/paveldanilin/go-camel/pkg/camel/template"
 	"github.com/paveldanilin/go-camel/pkg/camel/uri"
 	"log/slog"
@@ -48,7 +49,8 @@ type FuncRegistry interface {
 	Func(name string) func(*exchange.Exchange)
 }
 
-type route struct {
+// rtRoute represents a runtime route that can be 'called'.
+type rtRoute struct {
 	name     string
 	from     string
 	producer api.Producer
@@ -74,7 +76,7 @@ type Runtime struct {
 	exchangeFactory    api.ExchangeFactory
 	converterRegistry  ConverterRegistry
 
-	routes    map[string]*route
+	routes    map[string]*rtRoute
 	endpoints map[string]api.Endpoint
 	consumers []api.Consumer
 
@@ -111,7 +113,7 @@ func NewRuntime(config RuntimeConfig) *Runtime {
 
 		messageHistory: config.MessageHistory,
 
-		routes:    map[string]*route{},
+		routes:    map[string]*rtRoute{},
 		endpoints: map[string]api.Endpoint{},
 		consumers: []api.Consumer{},
 
@@ -204,7 +206,7 @@ func (rt *Runtime) MustRegisterDataFormat(name string, dataFormat api.DataFormat
 	}
 }
 
-func (rt *Runtime) RegisterRoute(routeDefinition *Route) error {
+func (rt *Runtime) RegisterRoute(routeDefinition *route.Definition) error {
 	if _, exists := rt.routes[routeDefinition.Name]; exists {
 		rt.logger.Error(context.Background(), fmt.Sprintf("Route with name '%s' already registered", routeDefinition.Name))
 		return errors.New("route already registered: " + routeDefinition.Name)
@@ -231,7 +233,7 @@ func (rt *Runtime) RegisterRoute(routeDefinition *Route) error {
 	return nil
 }
 
-func (rt *Runtime) MustRegisterRoute(routeDefinition *Route) {
+func (rt *Runtime) MustRegisterRoute(routeDefinition *route.Definition) {
 	err := rt.RegisterRoute(routeDefinition)
 	if err != nil {
 		panic(fmt.Errorf("camel: failed to register step: %w", err))
@@ -312,7 +314,7 @@ func (rt *Runtime) SendHeaders(ctx context.Context, uri string, headers map[stri
 	return exchangeCopy.Message(), nil
 }
 
-func (rt *Runtime) Route(routeId string) *route {
+func (rt *Runtime) Route(routeId string) *rtRoute {
 	if r, exists := rt.routes[routeId]; exists {
 		return r
 	}

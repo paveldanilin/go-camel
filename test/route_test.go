@@ -9,7 +9,8 @@ import (
 	"github.com/paveldanilin/go-camel/pkg/camel/converter"
 	"github.com/paveldanilin/go-camel/pkg/camel/env"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
-	"github.com/paveldanilin/go-camel/pkg/camel/expr"
+	"github.com/paveldanilin/go-camel/pkg/camel/route"
+	"github.com/paveldanilin/go-camel/pkg/camel/route/expr"
 	"testing"
 )
 
@@ -22,13 +23,13 @@ func TestRoute_SetBody(t *testing.T) {
 	// Build camel step definition
 	route, err := camel.NewRoute("sum", "direct:sum").
 		Choice("test input data").
-		When(expr.Simple("header.a==nil"), func(b *camel.RouteBuilder) {
+		When(expr.Simple("header.a==nil"), func(b *route.Builder) {
 			b.SetError("", errors.New("not defined mandatory parameter: a"))
 		}).
-		When(expr.Simple("header.b==nil"), func(b *camel.RouteBuilder) {
+		When(expr.Simple("header.b==nil"), func(b *route.Builder) {
 			b.SetError("", errors.New("not defined mandatory parameter: b"))
 		}).
-		Otherwise(func(b *camel.RouteBuilder) {
+		Otherwise(func(b *route.Builder) {
 			b.SetBody("", expr.Simple("header.a + header.b"))
 		}).
 		Build()
@@ -110,10 +111,10 @@ func TestRoute_Unmarshal(t *testing.T) {
 		Unmarshal("", "json", person{}).
 		Choice("test person age").
 		// now body contains person{}
-		When(expr.Simple("body.Age>=18"), func(b *camel.RouteBuilder) {
+		When(expr.Simple("body.Age>=18"), func(b *route.Builder) {
 			b.SetBody("person is adult", expr.Constant(true))
 		}).
-		When(expr.Simple("body.Age<18"), func(b *camel.RouteBuilder) {
+		When(expr.Simple("body.Age<18"), func(b *route.Builder) {
 			b.SetBody("person is not adult", expr.Constant(false))
 		}).
 		EndChoice().

@@ -1,4 +1,4 @@
-package routestep
+package step
 
 import (
 	"fmt"

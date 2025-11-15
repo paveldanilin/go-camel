@@ -1,23 +1,23 @@
-package camel
+package route
 
 import (
 	"fmt"
-	"github.com/paveldanilin/go-camel/pkg/camel/expr"
-	"github.com/paveldanilin/go-camel/pkg/camel/routestep"
+	"github.com/paveldanilin/go-camel/pkg/camel/route/expr"
+	"github.com/paveldanilin/go-camel/pkg/camel/route/step"
 )
 
 type ChoiceStepBuilder struct {
-	builder    *RouteBuilder
-	choiceStep *routestep.Choice
+	builder    *Builder
+	choiceStep *step.Choice
 }
 
 // When adds ChoiceWhen block to the current ChoiceStep and returns ChoiceStepBuilder.
-func (cb *ChoiceStepBuilder) When(predicate expr.Definition, configure func(b *RouteBuilder)) *ChoiceStepBuilder {
+func (cb *ChoiceStepBuilder) When(predicate expr.Definition, configure func(b *Builder)) *ChoiceStepBuilder {
 	if cb.builder.err != nil {
 		return cb
 	}
 
-	whenCase := routestep.ChoiceWhen{Predicate: predicate}
+	whenCase := step.ChoiceWhen{Predicate: predicate}
 
 	cb.builder.pushStack(&whenCase.Steps)
 	configure(cb.builder)
@@ -29,7 +29,7 @@ func (cb *ChoiceStepBuilder) When(predicate expr.Definition, configure func(b *R
 }
 
 // Otherwise adds the otherwise (default) block to the current ChoiceStep and returns main RouteBuilder.
-func (cb *ChoiceStepBuilder) Otherwise(configure func(b *RouteBuilder)) *RouteBuilder {
+func (cb *ChoiceStepBuilder) Otherwise(configure func(b *Builder)) *Builder {
 	if cb.builder.err != nil {
 		return cb.builder
 	}
@@ -46,6 +46,6 @@ func (cb *ChoiceStepBuilder) Otherwise(configure func(b *RouteBuilder)) *RouteBu
 }
 
 // EndChoice returns the main RouteBuilder.
-func (cb *ChoiceStepBuilder) EndChoice() *RouteBuilder {
+func (cb *ChoiceStepBuilder) EndChoice() *Builder {
 	return cb.builder
 }

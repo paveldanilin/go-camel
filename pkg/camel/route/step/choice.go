@@ -1,9 +1,9 @@
-package routestep
+package step
 
 import (
 	"fmt"
 	"github.com/paveldanilin/go-camel/pkg/camel/api"
-	"github.com/paveldanilin/go-camel/pkg/camel/expr"
+	"github.com/paveldanilin/go-camel/pkg/camel/route/expr"
 	"strings"
 )
 
