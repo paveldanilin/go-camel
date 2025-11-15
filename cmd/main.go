@@ -6,7 +6,7 @@ import (
 	"github.com/paveldanilin/go-camel/pkg/camel"
 	"github.com/paveldanilin/go-camel/pkg/camel/component/direct"
 	"github.com/paveldanilin/go-camel/pkg/camel/component/timer"
-	"github.com/paveldanilin/go-camel/pkg/camel/errs"
+	"github.com/paveldanilin/go-camel/pkg/camel/errmatcher"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 	"github.com/paveldanilin/go-camel/pkg/camel/expr"
 	"time"
@@ -38,7 +38,7 @@ func main() {
 		Try("", func(b *camel.RouteBuilder) {
 			b.Func("x10", "x10Func")
 		}).
-		Catch(errs.Any(), func(b *camel.RouteBuilder) {
+		Catch(errmatcher.Any(), func(b *camel.RouteBuilder) {
 			b.SetBody("xxx", expr.Simple("'>>' + error.Error() + '<<'"))
 		}).
 		EndTry().
@@ -68,13 +68,13 @@ func main() {
 
 	// Ticks every 5 seconds
 	/*
-		r, errs = camel.NewRoute("ticker", "timer:myTimer?interval=5s").
+		r, errmatcher = camel.NewRoute("ticker", "timer:myTimer?interval=5s").
 			Pipeline("on tick", true, fn(b *dsl.RouteBuilder) {
 				b.SetBody("set count", camel.Simple("'COUNT: ' + string(headers.CamelTimerCounter)"))
 			}).
 			Build()
-		if errs != nil {
-			panic(errs)
+		if errmatcher != nil {
+			panic(errmatcher)
 		}
 		camelRuntime.MustRegisterRoute(r)
 	*/

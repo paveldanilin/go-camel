@@ -2,7 +2,7 @@ package camel
 
 import (
 	"fmt"
-	"github.com/paveldanilin/go-camel/pkg/camel/errs"
+	"github.com/paveldanilin/go-camel/pkg/camel/errmatcher"
 	"github.com/paveldanilin/go-camel/pkg/camel/routestep"
 )
 
@@ -12,7 +12,7 @@ type TryStepBuilder struct {
 }
 
 // Catch adds 'catch' to the current TryStep.
-func (tb *TryStepBuilder) Catch(errorMatcher errs.Matcher, configure func(b *RouteBuilder)) *TryStepBuilder {
+func (tb *TryStepBuilder) Catch(errorMatcher errmatcher.Definition, configure func(b *RouteBuilder)) *TryStepBuilder {
 	if tb.builder.err != nil {
 		return tb
 	}

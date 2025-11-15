@@ -3,12 +3,12 @@ package routestep
 import (
 	"fmt"
 	"github.com/paveldanilin/go-camel/pkg/camel/api"
-	"github.com/paveldanilin/go-camel/pkg/camel/errs"
+	"github.com/paveldanilin/go-camel/pkg/camel/errmatcher"
 	"strings"
 )
 
 type CatchWhen struct {
-	ErrorMatcher errs.Matcher
+	ErrorMatcher errmatcher.Definition
 	Steps        []api.RouteStep
 }
 

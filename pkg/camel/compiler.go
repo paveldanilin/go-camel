@@ -24,7 +24,7 @@ import (
 	"github.com/paveldanilin/go-camel/internal/eip/unmarshal"
 	"github.com/paveldanilin/go-camel/internal/expression"
 	"github.com/paveldanilin/go-camel/pkg/camel/api"
-	"github.com/paveldanilin/go-camel/pkg/camel/errs"
+	"github.com/paveldanilin/go-camel/pkg/camel/errmatcher"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 	"github.com/paveldanilin/go-camel/pkg/camel/expr"
 	"github.com/paveldanilin/go-camel/pkg/camel/routestep"
@@ -329,19 +329,19 @@ func createExpression(def expr.Definition) (expression.Expression, error) {
 	return nil, fmt.Errorf("unknown expression kind: %s", def.Kind)
 }
 
-func createErrMatcher(matcherDefinition errs.Matcher) try.ErrorMatcher {
+func createErrMatcher(matcherDefinition errmatcher.Definition) try.ErrorMatcher {
 	if strings.TrimSpace(matcherDefinition.Target) == "*" || strings.TrimSpace(matcherDefinition.Target) == "" {
 		return try.AnyError()
 	}
 
 	switch matcherDefinition.MatchMode {
-	case errs.MatchModeIs:
+	case errmatcher.ModeIs:
 		return try.ErrorIs(matcherDefinition.Target)
-	case errs.MatchModeContains:
+	case errmatcher.ModeContains:
 		return try.ErrorContains(matcherDefinition.Target)
-	case errs.MatchModeEquals:
+	case errmatcher.ModeEquals:
 		return try.ErrorEquals(matcherDefinition.Target)
-	case errs.MatchModeRegex:
+	case errmatcher.ModeRegex:
 		return try.ErrorMatches(matcherDefinition.Target)
 	}
 
