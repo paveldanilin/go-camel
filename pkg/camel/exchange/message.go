@@ -10,18 +10,16 @@ import (
 	"time"
 )
 
-const CamelHeaderMessageHistory = "CAMEL_HEADER_MESSAGE_HISTORY"
-
 type Message struct {
 	id      string
-	headers Map
-	Body    any
+	headers MessageHeaders
+	body    any
 }
 
 func NewMessage() *Message {
 	return &Message{
 		id:      uuid.NewString(),
-		headers: newMap(),
+		headers: MessageHeaders{},
 	}
 }
 
@@ -29,7 +27,7 @@ func (m *Message) Id() string {
 	return m.id
 }
 
-func (m *Message) Headers() *Map {
+func (m *Message) Headers() *MessageHeaders {
 	return &m.headers
 }
 
@@ -57,12 +55,20 @@ func (m *Message) RemoveHeader(name string) {
 	m.headers.Remove(name)
 }
 
+func (m *Message) Body() any {
+	return m.body
+}
+
+func (m *Message) SetBody(body any) {
+	m.body = body
+}
+
 func (m *Message) Copy() *Message {
 	if m == nil {
 		return nil
 	}
 
-	var headersCopy Map
+	var headersCopy MessageHeaders
 	if m.headers != nil {
 		headersCopy = m.headers.Copy()
 	}
@@ -70,7 +76,7 @@ func (m *Message) Copy() *Message {
 	return &Message{
 		id:      uuid.NewString(),
 		headers: headersCopy,
-		Body:    copyValue(m.Body),
+		body:    copyValue(m.body),
 	}
 }
 
@@ -142,7 +148,10 @@ func copyValue(v any) any {
 		b.WriteString(s)
 		return &b
 
-	case Map:
+	case Properties:
+		return x.Copy()
+
+	case MessageHeaders:
 		return x.Copy()
 
 	case map[string]any:

@@ -9,6 +9,10 @@ type ConvertBody struct {
 	Params     map[string]any
 }
 
+func (s *ConvertBody) setStepName(stepName string) {
+	s.Name = stepName
+}
+
 func (s *ConvertBody) StepName() string {
 	if s.Name == "" {
 		if s.TargetType == nil {

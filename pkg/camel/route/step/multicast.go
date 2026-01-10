@@ -22,6 +22,10 @@ type Multicast struct {
 	Outputs     []OutputProcess
 }
 
+func (s *Multicast) setStepName(stepName string) {
+	s.Name = stepName
+}
+
 func (s *Multicast) StepName() string {
 	if s.Name == "" {
 		outputNames := make([]string, len(s.Outputs))

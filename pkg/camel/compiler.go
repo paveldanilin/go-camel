@@ -3,25 +3,6 @@ package camel
 import (
 	"errors"
 	"fmt"
-	"github.com/paveldanilin/go-camel/internal/eip/choice"
-	"github.com/paveldanilin/go-camel/internal/eip/convertbody"
-	"github.com/paveldanilin/go-camel/internal/eip/convertheader"
-	"github.com/paveldanilin/go-camel/internal/eip/convertproperty"
-	"github.com/paveldanilin/go-camel/internal/eip/delay"
-	"github.com/paveldanilin/go-camel/internal/eip/fn"
-	"github.com/paveldanilin/go-camel/internal/eip/log"
-	"github.com/paveldanilin/go-camel/internal/eip/marshal"
-	"github.com/paveldanilin/go-camel/internal/eip/multicast"
-	"github.com/paveldanilin/go-camel/internal/eip/pipeline"
-	"github.com/paveldanilin/go-camel/internal/eip/removeheader"
-	"github.com/paveldanilin/go-camel/internal/eip/removeproperty"
-	"github.com/paveldanilin/go-camel/internal/eip/setbody"
-	"github.com/paveldanilin/go-camel/internal/eip/seterror"
-	"github.com/paveldanilin/go-camel/internal/eip/setheader"
-	"github.com/paveldanilin/go-camel/internal/eip/setproperty"
-	"github.com/paveldanilin/go-camel/internal/eip/to"
-	"github.com/paveldanilin/go-camel/internal/eip/try"
-	"github.com/paveldanilin/go-camel/internal/eip/unmarshal"
 	"github.com/paveldanilin/go-camel/internal/expression"
 	"github.com/paveldanilin/go-camel/internal/processor"
 	"github.com/paveldanilin/go-camel/pkg/camel/api"
@@ -42,8 +23,8 @@ type compilerConfig struct {
 	dataFormatRegistry DataFormatRegistry
 	converterRegistry  ConverterRegistry
 	endpointRegistry   EndpointRegistry
-	preProcessor       func(e *exchange.Exchange)
-	postProcessor      func(e *exchange.Exchange)
+	preProcessHook     processor.Hook
+	postProcessHook    processor.Hook
 }
 
 // compileRoute converts a set of route.Definition to a set of api.Processor.
@@ -60,255 +41,370 @@ func compileRoute(c compilerConfig, routeDefinition *route.Definition) (*rtRoute
 	}, nil
 }
 
-func createProcessor(c compilerConfig, routeName string, s ...api.RouteStep) (api.Processor, error) {
-	if s == nil || len(s) == 0 {
+func createProcessor(c compilerConfig, routeName string, steps ...api.RouteStep) (api.Processor, error) {
+	if steps == nil || len(steps) == 0 {
 		return nil, errors.New("empty steps")
 	}
 
-	if len(s) > 1 {
-		pipe := pipeline.NewProcessor(routeName, "", false)
-		for _, innerStep := range s {
-			p, err := createProcessor(c, routeName, innerStep)
+	if len(steps) > 1 {
+		// Auto wrap into pipeline
+		pipeline := processor.NewPipeline(false)
+		for _, s := range steps {
+			p, err := createProcessor(c, routeName, s)
 			if err != nil {
 				return nil, err
 			}
-			pipe.AddProcessor(p)
+			pipeline.AddProcessor(p)
 		}
-		return processor.NewProcessor(pipe, c.preProcessor, c.postProcessor), nil
+		return processor.NewRouteStep(routeName, "", pipeline, c.preProcessHook, c.postProcessHook), nil
 	}
 
-	switch t := s[0].(type) {
+	var proc api.Processor
+	var err error
+
+	switch t := steps[0].(type) {
 	case *step.SetBody:
-		bodyExpr, err := createExpression(t.BodyValue)
-		if err != nil {
-			return nil, err
-		}
-		p := setbody.NewProcessor(routeName, t.StepName(), bodyExpr)
-		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
+		proc, err = createSetBodyProcessor(t)
 
 	case *step.SetHeader:
-		headerExpr, err := createExpression(t.HeaderValue)
-		if err != nil {
-			return nil, err
-		}
-		p := setheader.NewProcessor(routeName, t.StepName(), t.HeaderName, headerExpr)
-		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
+		proc, err = createSetHeaderProcessor(t)
 
 	case *step.SetProperty:
-		propertyExpr, err := createExpression(t.PropertyValue)
-		if err != nil {
-			return nil, err
-		}
-		p := setproperty.NewProcessor(routeName, t.StepName(), t.PropertyName, propertyExpr)
-		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
+		proc, err = createSetPropertyProcessor(t)
 
 	case *step.To:
-		uriVars, err := template.Vars(t.URI)
+		proc, err = createToProcessor(c, t)
+
+	case *step.Pipeline:
+		proc, err = createPipelineProcessor(c, routeName, t)
+
+	case *step.Choice:
+		proc, err = createChoiceProcessor(c, routeName, t)
+
+	case *step.Try:
+		proc, err = createTryProcessor(c, routeName, t)
+
+	case *step.Fn:
+		proc, err = createFnProcessor(c, t)
+
+	case *step.SetError:
+		proc = processor.NewSetError(t.Error)
+
+	case *step.Delay:
+		proc = processor.NewDelay(t.Duration)
+
+	case *step.Multicast:
+		proc, err = createMulticastProcessor(c, routeName, t)
+
+	case *step.Log:
+		proc, err = processor.NewLog(t.Msg, t.Level, c.logger)
+
+	case *step.RemoveHeader:
+		proc = processor.NewRemoveHeader(t.HeaderNames...)
+
+	case *step.RemoveProperty:
+		proc = processor.NewRemoveProperty(t.PropertyNames...)
+
+	case *step.Marshal:
+		proc = processor.NewMarshal(c.dataFormatRegistry.DataFormat(t.Format))
+
+	case *step.Unmarshal:
+		proc = processor.NewUnmarshal(t.TargetType, c.dataFormatRegistry.DataFormat(t.Format))
+
+	case *step.ConvertBody:
+		proc, err = createConvertBodyProcessor(c, t)
+
+	case *step.ConvertHeader:
+		proc, err = createConvertHeaderProcessor(c, t)
+
+	case *step.ConvertProperty:
+		proc, err = createConvertPropertyProcessor(c, t)
+
+	case *step.WhileLoop:
+		proc, err = createWhileLoopProcessor(c, routeName, t)
+
+	case *step.ConvertVariable:
+		proc, err = createConvertVariableProcessor(c, t)
+
+	case *step.RemoveVariable:
+		proc = processor.NewRemoveVariable(t.VariableNames...)
+
+	case *step.SetVariable:
+		proc, err = createSetVariableProcessor(t)
+
+	default:
+		return nil, fmt.Errorf("unknown route step: %T", steps[0])
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	return processor.NewRouteStep(routeName, steps[0].StepName(), proc, c.preProcessHook, c.postProcessHook), nil
+}
+
+func createConvertVariableProcessor(c compilerConfig, convertVariable *step.ConvertVariable) (*processor.ConvertVariable, error) {
+	var targetType reflect.Type
+	if convertVariable.TargetType != nil {
+		if reflectedType, isReflectType := convertVariable.TargetType.(reflect.Type); isReflectType {
+			targetType = reflectedType
+		} else {
+			targetType = reflect.TypeOf(convertVariable.TargetType)
+		}
+	} else if convertVariable.NamedType != "" {
+		if namedType, existsNamedType := c.converterRegistry.Type(convertVariable.NamedType); existsNamedType {
+			targetType = namedType
+		} else {
+			return nil, fmt.Errorf("compiler: unknown target type: %s", convertVariable.NamedType)
+		}
+	} else {
+		return nil, errors.New("compiler: no target type")
+	}
+
+	return processor.NewConvertVariable(convertVariable.VariableName, targetType, convertVariable.Params, c.converterRegistry), nil
+}
+
+func createMulticastProcessor(c compilerConfig, routeName string, multicast *step.Multicast) (*processor.Multicast, error) {
+	multicastProcessor := processor.NewMulticast(multicast.Parallel, multicast.StopOnError, multicast.Aggregator)
+	for _, output := range multicast.Outputs {
+		outputProcessor, err := createProcessor(c, routeName, output.Steps...)
+		if err != nil {
+			return nil, err
+		}
+		multicastProcessor.AddOutput(outputProcessor)
+	}
+	return multicastProcessor, nil
+}
+
+func createWhileLoopProcessor(c compilerConfig, routeName string, whileLoop *step.WhileLoop) (*processor.WhileLoop, error) {
+	prdExpr, err := createExpression(whileLoop.Predicate)
+	if err != nil {
+		return nil, err
+	}
+
+	whileLoopProcessor, err := processor.NewWhileLoop(prdExpr, whileLoop.CopyExchange)
+	if err != nil {
+		return nil, err
+	}
+
+	for _, s := range whileLoop.Steps {
+		p, err := createProcessor(c, routeName, s)
+		if err != nil {
+			return nil, err
+		}
+		whileLoopProcessor.AddProcessor(p)
+	}
+
+	return whileLoopProcessor, nil
+}
+
+func createSetBodyProcessor(setBody *step.SetBody) (*processor.SetBody, error) {
+	bodyExpr, err := createExpression(setBody.BodyValue)
+	if err != nil {
+		return nil, err
+	}
+	return processor.NewSetBody(bodyExpr), nil
+}
+
+func createSetHeaderProcessor(setHeader *step.SetHeader) (*processor.SetHeader, error) {
+	headerExpr, err := createExpression(setHeader.HeaderValue)
+	if err != nil {
+		return nil, err
+	}
+	return processor.NewSetHeader(setHeader.HeaderName, headerExpr), nil
+}
+
+func createSetPropertyProcessor(setProperty *step.SetProperty) (*processor.SetProperty, error) {
+	propertyExpr, err := createExpression(setProperty.PropertyValue)
+	if err != nil {
+		return nil, err
+	}
+	return processor.NewSetProperty(setProperty.PropertyName, propertyExpr), nil
+}
+
+func createSetVariableProcessor(setVariable *step.SetVariable) (*processor.SetVariable, error) {
+	valueExpr, err := createExpression(setVariable.VariableValue)
+	if err != nil {
+		return nil, err
+	}
+	return processor.NewSetVariable(setVariable.VariableName, valueExpr), nil
+}
+
+func createToProcessor(c compilerConfig, to *step.To) (api.Processor, error) {
+	uriVars, err := template.Vars(to.URI)
+	if err != nil {
+		return nil, err
+	}
+
+	// static to
+	if len(uriVars) == 0 {
+		endpoint := c.endpointRegistry.Endpoint(to.URI)
+		if endpoint == nil {
+			return nil, fmt.Errorf("failed to create 'to' processor: not found endpoint for URI '%s'", to.URI)
+		}
+		producer, producerErr := endpoint.CreateProducer()
+		if producerErr != nil {
+			return nil, fmt.Errorf("failed to create 'to' processor: %w", producerErr)
+		}
+		return processor.NewTo(producer), nil
+	}
+
+	// dynamic to
+	uriTpl, uriErr := template.Parse(to.URI)
+	if uriErr != nil {
+		return nil, fmt.Errorf("failed to create 'to' processor: %w", uriErr)
+	}
+
+	return processor.NewToD(uriTpl, uriVars, c.endpointRegistry, c.env), nil
+}
+
+func createPipelineProcessor(c compilerConfig, routeName string, pipeline *step.Pipeline) (*processor.Pipeline, error) {
+	pipelineProcessor := processor.NewPipeline(pipeline.StoOnError)
+	for _, innerStep := range pipeline.Steps {
+		p, err := createProcessor(c, routeName, innerStep)
+		if err != nil {
+			return nil, err
+		}
+		pipelineProcessor.AddProcessor(p)
+	}
+	return pipelineProcessor, nil
+}
+
+func createChoiceProcessor(c compilerConfig, routeName string, choice *step.Choice) (*processor.Choice, error) {
+	choiceProcessor := processor.NewChoice()
+
+	for _, when := range choice.WhenCases {
+		whenBody, err := createProcessor(c, routeName, when.Steps...)
 		if err != nil {
 			return nil, err
 		}
 
-		var p api.Processor
-		if len(uriVars) == 0 {
-			endpoint := c.endpointRegistry.Endpoint(t.URI)
-			if endpoint == nil {
-				return nil, fmt.Errorf("failed to create 'to' processor: not found endpoint for URI '%s'", t.URI)
-			}
-			producer, producerErr := endpoint.CreateProducer()
-			if producerErr != nil {
-				return nil, fmt.Errorf("failed to create 'to' processor: %w", producerErr)
-			}
-			p = to.NewStaticProcessor(routeName, t.StepName(), producer)
-		} else {
-			uriTpl, uriErr := template.Parse(t.URI)
-			if uriErr != nil {
-				return nil, fmt.Errorf("failed to create 'to' processor: %w", uriErr)
-			}
-
-			p = to.NewDynamicProcessor(routeName, t.StepName(), uriTpl, uriVars, c.endpointRegistry, c.env)
+		prdExpr, err := createExpression(when.Predicate)
+		if err != nil {
+			return nil, err
 		}
-		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
-
-	case *step.Pipeline:
-		pipe := pipeline.NewProcessor(routeName, t.StepName(), t.StoOnError)
-		for _, innerStep := range t.Steps {
-			p, err := createProcessor(c, routeName, innerStep)
-			if err != nil {
-				return nil, err
-			}
-			pipe.AddProcessor(p)
-		}
-		return processor.NewProcessor(pipe, c.preProcessor, c.postProcessor), nil
-
-	case *step.Choice:
-		p := choice.NewProcessor(routeName, t.StepName())
-		for _, when := range t.WhenCases {
-			whenBody, err := createProcessor(c, routeName, when.Steps...)
-			if err != nil {
-				return nil, err
-			}
-
-			prdExpr, err := createExpression(when.Predicate)
-			if err != nil {
-				return nil, err
-			}
-			p.AddWhen(prdExpr, whenBody)
-		}
-		if len(t.Otherwise) > 0 {
-			otherwise, err := createProcessor(c, routeName, t.Otherwise...)
-			if err != nil {
-				return nil, err
-			}
-			p.SetOtherwise(otherwise)
-		}
-		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
-
-	case *step.Try:
-		p := try.NewProcessor(routeName, t.StepName())
-
-		for _, tryStep := range t.Steps {
-			tp, err := createProcessor(c, routeName, tryStep)
-			if err != nil {
-				return nil, err
-			}
-			p.AddProcessor(tp)
-		}
-
-		for _, catch := range t.WhenCatches {
-			catchProcessor, err := createProcessor(c, routeName, catch.Steps...)
-			if err != nil {
-				return nil, err
-			}
-			p.AddCatch(createErrMatcher(catch.ErrorMatcher), catchProcessor)
-		}
-
-		for _, finallyStep := range t.FinallySteps {
-			finallyProcessor, err := createProcessor(c, routeName, finallyStep)
-			if err != nil {
-				return nil, err
-			}
-			p.AddFinally(finallyProcessor)
-		}
-		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
-
-	case *step.Fn:
-		if inlineFunc, isInlineFunc := t.Func.(func(*exchange.Exchange)); isInlineFunc {
-			return processor.NewProcessor(fn.NewProcessor(routeName, t.StepName(), inlineFunc), c.preProcessor, c.postProcessor), nil
-		}
-		if storedFuncName, isStoredFunc := t.Func.(string); isStoredFunc {
-			storedFunc := c.funcRegistry.Func(storedFuncName)
-			if storedFunc == nil {
-				return nil, fmt.Errorf("fn step: %s: function not found in registry: %s, try to register it first RegisterFunc/MustRegisterFunc",
-					t.StepName(), storedFuncName)
-			}
-			return processor.NewProcessor(fn.NewProcessor(routeName, t.StepName(), storedFunc), c.preProcessor, c.postProcessor), nil
-		}
-		return nil, fmt.Errorf("fn step: %s: expected function signature 'fn(*Exchange)'", t.StepName())
-
-	case *step.SetError:
-		p := seterror.NewProcessor(routeName, t.StepName(), t.Error)
-		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
-
-	case *step.Delay:
-		p := delay.NewProcessor(routeName, t.StepName(), t.Duration)
-		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
-
-	case *step.Multicast:
-		p := multicast.NewProcessor(routeName, t.StepName(), t.Parallel, t.StopOnError, t.Aggregator)
-		for _, output := range t.Outputs {
-			outputProcessor, err := createProcessor(c, routeName, output.Steps...)
-			if err != nil {
-				return nil, err
-			}
-			p.AddOutput(outputProcessor)
-		}
-		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
-
-	case *step.Log:
-		p := log.NewProcessor(routeName, t.StepName(), t.Msg, t.Level, c.logger)
-		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
-
-	case *step.RemoveHeader:
-		p := removeheader.NewProcessor(routeName, t.StepName(), t.HeaderNames...)
-		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
-
-	case *step.RemoveProperty:
-		p := removeproperty.NewProcessor(routeName, t.StepName(), t.PropertyNames...)
-		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
-
-	case *step.Marshal:
-		p := marshal.NewProcessor(routeName, t.StepName(), c.dataFormatRegistry.DataFormat(t.Format))
-		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
-
-	case *step.Unmarshal:
-		p := unmarshal.NewProcessor(routeName, t.StepName(), t.TargetType, c.dataFormatRegistry.DataFormat(t.Format))
-		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
-
-	case *step.ConvertBody:
-		var targetType reflect.Type
-		if t.TargetType != nil {
-			if reflectedType, isReflectType := t.TargetType.(reflect.Type); isReflectType {
-				targetType = reflectedType
-			} else {
-				targetType = reflect.TypeOf(t.TargetType)
-			}
-		} else if t.NamedType != "" {
-			if namedType, existsNamedType := c.converterRegistry.Type(t.NamedType); existsNamedType {
-				targetType = namedType
-			} else {
-				return nil, fmt.Errorf("compiler: unknown target type: %s", t.NamedType)
-			}
-		} else {
-			return nil, errors.New("compiler: no target type")
-		}
-
-		p := convertbody.NewProcessor(routeName, t.StepName(), targetType, t.Params, c.converterRegistry)
-		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
-
-	case *step.ConvertHeader:
-		var targetType reflect.Type
-		if t.TargetType != nil {
-			if reflectedType, isReflectType := t.TargetType.(reflect.Type); isReflectType {
-				targetType = reflectedType
-			} else {
-				targetType = reflect.TypeOf(t.TargetType)
-			}
-		} else if t.NamedType != "" {
-			if namedType, existsNamedType := c.converterRegistry.Type(t.NamedType); existsNamedType {
-				targetType = namedType
-			} else {
-				return nil, fmt.Errorf("compiler: unknown target type: %s", t.NamedType)
-			}
-		} else {
-			return nil, errors.New("compiler: no target type")
-		}
-
-		p := convertheader.NewProcessor(routeName, t.StepName(), t.HeaderName, targetType, t.Params, c.converterRegistry)
-		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
-
-	case *step.ConvertProperty:
-		var targetType reflect.Type
-		if t.TargetType != nil {
-			if reflectedType, isReflectType := t.TargetType.(reflect.Type); isReflectType {
-				targetType = reflectedType
-			} else {
-				targetType = reflect.TypeOf(t.TargetType)
-			}
-		} else if t.NamedType != "" {
-			if namedType, existsNamedType := c.converterRegistry.Type(t.NamedType); existsNamedType {
-				targetType = namedType
-			} else {
-				return nil, fmt.Errorf("compiler: unknown target type: %s", t.NamedType)
-			}
-		} else {
-			return nil, errors.New("compiler: no target type")
-		}
-
-		p := convertproperty.NewProcessor(routeName, t.StepName(), t.PropertyName, targetType, t.Params, c.converterRegistry)
-		return processor.NewProcessor(p, c.preProcessor, c.postProcessor), nil
+		choiceProcessor.When(prdExpr, whenBody)
 	}
 
-	return nil, fmt.Errorf("unknown route step: %T", s[0])
+	if len(choice.Otherwise) > 0 {
+		otherwise, err := createProcessor(c, routeName, choice.Otherwise...)
+		if err != nil {
+			return nil, err
+		}
+		choiceProcessor.SetOtherwise(otherwise)
+	}
+
+	return choiceProcessor, nil
+}
+
+func createTryProcessor(c compilerConfig, routeName string, try *step.Try) (*processor.Try, error) {
+	tryProcessor := processor.NewTry()
+
+	for _, tryStep := range try.Steps {
+		tp, err := createProcessor(c, routeName, tryStep)
+		if err != nil {
+			return nil, err
+		}
+		tryProcessor.AddProcessor(tp)
+	}
+
+	for _, catch := range try.WhenCatches {
+		catchProcessor, err := createProcessor(c, routeName, catch.Steps...)
+		if err != nil {
+			return nil, err
+		}
+		tryProcessor.AddCatch(createErrMatcher(catch.ErrorMatcher), catchProcessor)
+	}
+
+	for _, finallyStep := range try.FinallySteps {
+		finallyProcessor, err := createProcessor(c, routeName, finallyStep)
+		if err != nil {
+			return nil, err
+		}
+		tryProcessor.AddFinally(finallyProcessor)
+	}
+
+	return tryProcessor, nil
+}
+
+func createFnProcessor(c compilerConfig, fn *step.Fn) (*processor.Fn, error) {
+	if inlineFunc, isInlineFunc := fn.Func.(func(*exchange.Exchange)); isInlineFunc {
+		return processor.NewFn(inlineFunc), nil
+	}
+
+	if storedFuncName, isStoredFunc := fn.Func.(string); isStoredFunc {
+		storedFunc := c.funcRegistry.Func(storedFuncName)
+		if storedFunc == nil {
+			return nil, fmt.Errorf("function not found in registry: '%s' at step '%s'",
+				storedFuncName, fn.StepName())
+		}
+		return processor.NewFn(storedFunc), nil
+	}
+
+	return nil, fmt.Errorf("unresolved function %v at step '%s'", fn.Func, fn.StepName())
+}
+
+func createConvertBodyProcessor(c compilerConfig, convertBody *step.ConvertBody) (*processor.ConvertBody, error) {
+	var targetType reflect.Type
+	if convertBody.TargetType != nil {
+		if reflectedType, isReflectType := convertBody.TargetType.(reflect.Type); isReflectType {
+			targetType = reflectedType
+		} else {
+			targetType = reflect.TypeOf(convertBody.TargetType)
+		}
+	} else if convertBody.NamedType != "" {
+		if namedType, existsNamedType := c.converterRegistry.Type(convertBody.NamedType); existsNamedType {
+			targetType = namedType
+		} else {
+			return nil, fmt.Errorf("compiler: unknown target type: %steps", convertBody.NamedType)
+		}
+	} else {
+		return nil, errors.New("compiler: no target type")
+	}
+
+	return processor.NewConvertBody(targetType, convertBody.Params, c.converterRegistry), nil
+}
+
+func createConvertHeaderProcessor(c compilerConfig, convertHeader *step.ConvertHeader) (*processor.ConvertHeader, error) {
+	var targetType reflect.Type
+	if convertHeader.TargetType != nil {
+		if reflectedType, isReflectType := convertHeader.TargetType.(reflect.Type); isReflectType {
+			targetType = reflectedType
+		} else {
+			targetType = reflect.TypeOf(convertHeader.TargetType)
+		}
+	} else if convertHeader.NamedType != "" {
+		if namedType, existsNamedType := c.converterRegistry.Type(convertHeader.NamedType); existsNamedType {
+			targetType = namedType
+		} else {
+			return nil, fmt.Errorf("compiler: unknown target type: %steps", convertHeader.NamedType)
+		}
+	} else {
+		return nil, errors.New("compiler: no target type")
+	}
+
+	return processor.NewConvertHeader(convertHeader.HeaderName, targetType, convertHeader.Params, c.converterRegistry), nil
+}
+
+func createConvertPropertyProcessor(c compilerConfig, convertProperty *step.ConvertProperty) (*processor.ConvertProperty, error) {
+	var targetType reflect.Type
+	if convertProperty.TargetType != nil {
+		if reflectedType, isReflectType := convertProperty.TargetType.(reflect.Type); isReflectType {
+			targetType = reflectedType
+		} else {
+			targetType = reflect.TypeOf(convertProperty.TargetType)
+		}
+	} else if convertProperty.NamedType != "" {
+		if namedType, existsNamedType := c.converterRegistry.Type(convertProperty.NamedType); existsNamedType {
+			targetType = namedType
+		} else {
+			return nil, fmt.Errorf("compiler: unknown target type: %steps", convertProperty.NamedType)
+		}
+	} else {
+		return nil, errors.New("compiler: no target type")
+	}
+
+	return processor.NewConvertProperty(convertProperty.PropertyName, targetType, convertProperty.Params, c.converterRegistry), nil
 }
 
 func createExpression(def expr.Definition) (expression.Expression, error) {
@@ -331,20 +427,20 @@ func createExpression(def expr.Definition) (expression.Expression, error) {
 	return nil, fmt.Errorf("unknown expression kind: %s", def.Kind)
 }
 
-func createErrMatcher(matcherDefinition errmatcher.Definition) try.ErrorMatcher {
+func createErrMatcher(matcherDefinition errmatcher.Definition) processor.ErrorMatcher {
 	if strings.TrimSpace(matcherDefinition.Target) == "*" || strings.TrimSpace(matcherDefinition.Target) == "" {
-		return try.AnyError()
+		return processor.AnyError()
 	}
 
 	switch matcherDefinition.MatchMode {
 	case errmatcher.ModeIs:
-		return try.ErrorIs(matcherDefinition.Target)
+		return processor.ErrorIs(matcherDefinition.Target)
 	case errmatcher.ModeContains:
-		return try.ErrorContains(matcherDefinition.Target)
+		return processor.ErrorContains(matcherDefinition.Target)
 	case errmatcher.ModeEquals:
-		return try.ErrorEquals(matcherDefinition.Target)
+		return processor.ErrorEquals(matcherDefinition.Target)
 	case errmatcher.ModeRegex:
-		return try.ErrorMatches(matcherDefinition.Target)
+		return processor.ErrorMatches(matcherDefinition.Target)
 	}
 
 	panic(fmt.Errorf("camel: error matcher: unknown mode: %s", matcherDefinition.MatchMode))

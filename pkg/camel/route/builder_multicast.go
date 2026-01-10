@@ -5,32 +5,37 @@ import (
 	"github.com/paveldanilin/go-camel/pkg/camel/route/step"
 )
 
-type MulticastStepBuilder struct {
+type MulticastBuilder struct {
 	builder       *Builder
 	multicastStep *step.Multicast
 }
 
-func (mb *MulticastStepBuilder) ParallelProcessing() *MulticastStepBuilder {
+func (mb *MulticastBuilder) WithName(stepName string) *MulticastBuilder {
+	step.ApplyOptions(mb.multicastStep, step.WithName(stepName))
+	return mb
+}
+
+func (mb *MulticastBuilder) WithParallelProcessing() *MulticastBuilder {
 	mb.multicastStep.Parallel = true
 	return mb
 }
 
-func (mb *MulticastStepBuilder) SyncProcessing() *MulticastStepBuilder {
+func (mb *MulticastBuilder) WithSyncProcessing() *MulticastBuilder {
 	mb.multicastStep.Parallel = false
 	return mb
 }
 
-func (mb *MulticastStepBuilder) StopOnError(stopOnError bool) *MulticastStepBuilder {
+func (mb *MulticastBuilder) WithStopOnError(stopOnError bool) *MulticastBuilder {
 	mb.multicastStep.StopOnError = stopOnError
 	return mb
 }
 
-func (mb *MulticastStepBuilder) Aggregator(aggregator api.ExchangeAggregator) *MulticastStepBuilder {
+func (mb *MulticastBuilder) WithAggregator(aggregator api.ExchangeAggregator) *MulticastBuilder {
 	mb.multicastStep.Aggregator = aggregator
 	return mb
 }
 
-func (mb *MulticastStepBuilder) Process(configure func(b *Builder)) *MulticastStepBuilder {
+func (mb *MulticastBuilder) Process(block func(b *Builder)) *MulticastBuilder {
 	if mb.builder.err != nil {
 		return mb
 	}
@@ -38,7 +43,7 @@ func (mb *MulticastStepBuilder) Process(configure func(b *Builder)) *MulticastSt
 	outputProcess := step.OutputProcess{Steps: []api.RouteStep{}}
 
 	mb.builder.pushStack(&outputProcess.Steps)
-	configure(mb.builder)
+	block(mb.builder)
 	mb.builder.popStack()
 
 	mb.multicastStep.Outputs = append(mb.multicastStep.Outputs, outputProcess)
@@ -46,6 +51,6 @@ func (mb *MulticastStepBuilder) Process(configure func(b *Builder)) *MulticastSt
 	return mb
 }
 
-func (mb *MulticastStepBuilder) EndMulticast() *Builder {
+func (mb *MulticastBuilder) EndMulticast() *Builder {
 	return mb.builder
 }

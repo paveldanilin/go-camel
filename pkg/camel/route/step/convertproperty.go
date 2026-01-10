@@ -10,6 +10,10 @@ type ConvertProperty struct {
 	Params       map[string]any
 }
 
+func (s *ConvertProperty) setStepName(stepName string) {
+	s.Name = stepName
+}
+
 func (s *ConvertProperty) StepName() string {
 	if s.Name == "" {
 		if s.TargetType == nil {

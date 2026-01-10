@@ -11,12 +11,45 @@ import (
 var simpleExpressionEnv map[string]any
 
 func init() {
-	toStringFn := func(i int) string {
-		return strconv.Itoa(i)
+	toStringFn := func(val any) string {
+		switch v := val.(type) {
+		case string:
+			return v
+		case int:
+			return strconv.Itoa(v)
+		case int64:
+			return strconv.FormatInt(v, 10)
+		case float64:
+			return strconv.FormatFloat(v, 'f', -1, 64)
+		case bool:
+			return strconv.FormatBool(v)
+		case nil:
+			return ""
+		default:
+			return fmt.Sprint(v)
+		}
+	}
+	toIntFn := func(val any) int {
+		switch v := val.(type) {
+		case int:
+			return v
+		case int32:
+			return int(v)
+		case int64:
+			return int(v)
+		case float64:
+			return int(v)
+		case string:
+			if i, err := strconv.Atoi(v); err == nil {
+				return i
+			}
+		}
+		return 0
 	}
 
 	simpleExpressionEnv = map[string]any{
 		"toString": toStringFn,
+		"toInt":    toIntFn,
 	}
 }
 

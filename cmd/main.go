@@ -10,6 +10,7 @@ import (
 	"github.com/paveldanilin/go-camel/pkg/camel/route"
 	"github.com/paveldanilin/go-camel/pkg/camel/route/errmatcher"
 	"github.com/paveldanilin/go-camel/pkg/camel/route/expr"
+	"github.com/paveldanilin/go-camel/pkg/camel/route/step"
 	"time"
 )
 
@@ -23,37 +24,41 @@ func main() {
 	camelRuntime.MustRegisterComponent(timer.NewComponent())
 
 	camelRuntime.MustRegisterFunc("x10Func", func(e *exchange.Exchange) {
-		e.Message().Body = e.Message().Body.(int) * 100
+		e.Message().SetBody(e.Message().Body().(int) * 100)
 	})
 
 	r, err := camel.NewRoute("sum", "direct:sum").
-		SetBody("calc sum", expr.Simple("header.a + header.b")).
-		Choice("test sum result").
+		SetBody(expr.Simple("header.a + header.b"), step.WithName("CalcSum")).
+		Choice().
 		When(expr.Simple("body == 40"), func(b *route.Builder) {
-			b.Delay("", 2500)
-			b.SetBody("double body value", expr.Simple("body * 2"))
+			b.Delay(2500, step.WithName("WaitForTimeout"))
+			b.SetBody(expr.Simple("body * 2"))
 		}).
 		Otherwise(func(b *route.Builder) {
-			b.SetBody("x*4", expr.Simple("body * 4"))
+			b.SetBody(expr.Simple("body * 4"))
 		}).
-		Try("", func(b *route.Builder) {
-			b.Func("x10", "x10Func")
+		Try(func(b *route.Builder) {
+			b.Func("x10Func")
 		}).
 		Catch(errmatcher.Any(), func(b *route.Builder) {
-			b.SetBody("xxx", expr.Simple("'>>' + error.Error() + '<<'"))
+			b.SetBody(expr.Simple("'>>' + error.Error() + '<<'"))
 		}).
 		EndTry().
-		Multicast("multi tasks").ParallelProcessing().
+		Multicast().WithParallelProcessing().
 		Process(func(b *route.Builder) {
-			b.Delay("", 15000)
-			b.LogWarn("", "xxx> ${body}")
+			b.Delay(15000)
+			b.LogInfo("xxx> ${body}")
 		}).
 		Process(func(b *route.Builder) {
-			b.Delay("", 5000)
-			b.SetProperty("setGame", "game", expr.Constant("DooM"))
-			b.LogInfo("", "yy>>${body}>>${property.game}")
+			b.Delay(5000)
+			// TODO: parallel multicast sync exchange?
+			b.SetProperty("game", expr.Constant("DooM"))
+			b.LogInfo("yy>>${body}>>${property.game}")
 		}).
 		EndMulticast().
+		//Func(func(e *exchange.Exchange) {
+		//	panic("011001101")
+		//}, step.WithName("TestPanic")).
 		Build()
 	if err != nil {
 		panic(err)
@@ -88,7 +93,7 @@ func main() {
 
 	// Calc sum
 	ctx, _ := context.WithTimeout(context.Background(), 60*time.Second)
-	ex, err := camelRuntime.Send(ctx, "direct:sum", 0, exchange.Map{
+	ex, err := camelRuntime.Send(ctx, "direct:sum", 0, exchange.MessageHeaders{
 		"a": 1,
 		"b": 39,
 	})
@@ -96,7 +101,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Printf("RESULT: %v+", ex.Message().Body)
+	fmt.Printf("RESULT: %v+", ex.Message().Body())
 	//fmt.Printf("%s > SUM: %+v [%T]\n", strings.Join(ex.MessagePath(), "/"), ex.Message().Body, ex.Message().Body)
 
 	time.Sleep(1 * time.Minute)

@@ -6,13 +6,18 @@ import (
 	"github.com/paveldanilin/go-camel/pkg/camel/route/step"
 )
 
-type ChoiceStepBuilder struct {
+type ChoiceBuilder struct {
 	builder    *Builder
 	choiceStep *step.Choice
 }
 
-// When adds ChoiceWhen block to the current ChoiceStep and returns ChoiceStepBuilder.
-func (cb *ChoiceStepBuilder) When(predicate expr.Definition, configure func(b *Builder)) *ChoiceStepBuilder {
+func (cb *ChoiceBuilder) WithName(stepName string) *ChoiceBuilder {
+	step.ApplyOptions(cb.choiceStep, step.WithName(stepName))
+	return cb
+}
+
+// When adds step.ChoiceWhen block to the current choice step and returns ChoiceBuilder.
+func (cb *ChoiceBuilder) When(predicate expr.Definition, then func(b *Builder)) *ChoiceBuilder {
 	if cb.builder.err != nil {
 		return cb
 	}
@@ -20,7 +25,7 @@ func (cb *ChoiceStepBuilder) When(predicate expr.Definition, configure func(b *B
 	whenCase := step.ChoiceWhen{Predicate: predicate}
 
 	cb.builder.pushStack(&whenCase.Steps)
-	configure(cb.builder)
+	then(cb.builder)
 	cb.builder.popStack()
 
 	cb.choiceStep.WhenCases = append(cb.choiceStep.WhenCases, whenCase)
@@ -28,8 +33,8 @@ func (cb *ChoiceStepBuilder) When(predicate expr.Definition, configure func(b *B
 	return cb
 }
 
-// Otherwise adds the otherwise (default) block to the current ChoiceStep and returns main RouteBuilder.
-func (cb *ChoiceStepBuilder) Otherwise(configure func(b *Builder)) *Builder {
+// Otherwise adds the otherwise (default) block to the current choice step and returns main *Builder.
+func (cb *ChoiceBuilder) Otherwise(block func(b *Builder)) *Builder {
 	if cb.builder.err != nil {
 		return cb.builder
 	}
@@ -39,13 +44,13 @@ func (cb *ChoiceStepBuilder) Otherwise(configure func(b *Builder)) *Builder {
 	}
 
 	cb.builder.pushStack(&cb.choiceStep.Otherwise)
-	configure(cb.builder)
+	block(cb.builder)
 	cb.builder.popStack()
 
 	return cb.builder
 }
 
-// EndChoice returns the main RouteBuilder.
-func (cb *ChoiceStepBuilder) EndChoice() *Builder {
+// EndChoice returns the main *Builder.
+func (cb *ChoiceBuilder) EndChoice() *Builder {
 	return cb.builder
 }

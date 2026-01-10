@@ -9,6 +9,10 @@ type Fn struct {
 	Func any
 }
 
+func (s *Fn) setStepName(stepName string) {
+	s.Name = stepName
+}
+
 func (s *Fn) StepName() string {
 	if s.Name == "" {
 		return fmt.Sprintf("fn[%T:%v]", s.Func, s.Name)

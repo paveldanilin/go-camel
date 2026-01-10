@@ -7,6 +7,10 @@ type Delay struct {
 	Duration int64 // milliseconds
 }
 
+func (s *Delay) setStepName(stepName string) {
+	s.Name = stepName
+}
+
 func (s *Delay) StepName() string {
 	if s.Name == "" {
 		return fmt.Sprintf("delay[%dms]", s.Duration)

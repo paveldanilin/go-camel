@@ -19,6 +19,10 @@ type Try struct {
 	FinallySteps []api.RouteStep
 }
 
+func (s *Try) setStepName(stepName string) {
+	s.Name = stepName
+}
+
 func (s *Try) StepName() string {
 	if s.Name == "" {
 		when := make([]string, len(s.WhenCatches))

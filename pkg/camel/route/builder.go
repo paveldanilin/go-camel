@@ -6,6 +6,7 @@ import (
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 	"github.com/paveldanilin/go-camel/pkg/camel/route/expr"
 	"github.com/paveldanilin/go-camel/pkg/camel/route/step"
+	"strings"
 )
 
 // Definition represents camel route definition.
@@ -17,7 +18,7 @@ type Definition struct {
 	Steps []api.RouteStep
 }
 
-// Builder represents a Route builder.
+// Builder represents a route Definition builder.
 type Builder struct {
 	route *Definition
 	stack []*[]api.RouteStep
@@ -25,12 +26,15 @@ type Builder struct {
 }
 
 func NewBuilder(name, from string) *Builder {
+	name = strings.TrimSpace(name)
+	from = strings.TrimSpace(from)
 	if name == "" {
 		panic(fmt.Errorf("'name' must be not empty string"))
 	}
 	if from == "" {
 		panic(fmt.Errorf("'from' must be not empty string"))
 	}
+
 	r := &Definition{
 		Name:  name,
 		From:  from,
@@ -83,236 +87,347 @@ func (b *Builder) popStack() {
 }
 
 // SetBody adds step to set the message body.
-func (b *Builder) SetBody(stepName string, bodyValue expr.Definition) *Builder {
+func (b *Builder) SetBody(value expr.Definition, opts ...step.Option) *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.SetBody{
-		Name:      stepName,
-		BodyValue: bodyValue,
-	})
+
+	setBody := &step.SetBody{
+		BodyValue: value,
+	}
+
+	step.ApplyOptions(setBody, opts...)
+
+	b.addStep(setBody)
 	return b
 }
 
-func (b *Builder) ConvertBodyTo(stepName string, targetType any, params map[string]any) *Builder {
+func (b *Builder) ConvertBodyTo(targetType any, params map[string]any, opts ...step.Option) *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.ConvertBody{
-		Name:       stepName,
+
+	convertBody := &step.ConvertBody{
 		TargetType: targetType,
 		Params:     params,
-	})
+	}
+
+	step.ApplyOptions(convertBody, opts...)
+
+	b.addStep(convertBody)
 	return b
 }
 
-func (b *Builder) ConvertBodyToNamed(stepName, typeName string, params map[string]any) *Builder {
+func (b *Builder) ConvertBodyToNamed(typeName string, params map[string]any, opts ...step.Option) *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.ConvertBody{
-		Name:      stepName,
+
+	convertBody := &step.ConvertBody{
 		NamedType: typeName,
 		Params:    params,
-	})
+	}
+
+	step.ApplyOptions(convertBody, opts...)
+
+	b.addStep(convertBody)
 	return b
 }
 
-func (b *Builder) ConvertHeaderTo(stepName, headerName string, targetType any, params map[string]any) *Builder {
+func (b *Builder) ConvertHeaderTo(name string, targetType any, params map[string]any, opts ...step.Option) *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.ConvertHeader{
-		Name:       stepName,
+
+	convertHeader := &step.ConvertHeader{
+		HeaderName: name,
 		TargetType: targetType,
-		HeaderName: headerName,
 		Params:     params,
-	})
+	}
+
+	step.ApplyOptions(convertHeader, opts...)
+
+	b.addStep(convertHeader)
 	return b
 }
 
-func (b *Builder) ConvertHeaderToNamed(stepName, headerName, typeName string, params map[string]any) *Builder {
+func (b *Builder) ConvertHeaderToNamed(name, typeName string, params map[string]any, opts ...step.Option) *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.ConvertHeader{
-		Name:       stepName,
+
+	convertHeader := &step.ConvertHeader{
+		HeaderName: name,
 		NamedType:  typeName,
-		HeaderName: headerName,
 		Params:     params,
-	})
+	}
+
+	step.ApplyOptions(convertHeader, opts...)
+
+	b.addStep(convertHeader)
 	return b
 }
 
-func (b *Builder) ConvertPropertyTo(stepName, propertyName string, targetType any, params map[string]any) *Builder {
+func (b *Builder) ConvertPropertyTo(name string, targetType any, params map[string]any, opts ...step.Option) *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.ConvertProperty{
-		Name:         stepName,
+
+	convertProperty := &step.ConvertProperty{
+		PropertyName: name,
 		TargetType:   targetType,
-		PropertyName: propertyName,
 		Params:       params,
-	})
+	}
+
+	step.ApplyOptions(convertProperty, opts...)
+
+	b.addStep(convertProperty)
 	return b
 }
 
-func (b *Builder) ConvertPropertyToNamed(stepName, propertyName, typeName string, params map[string]any) *Builder {
+func (b *Builder) ConvertPropertyToNamed(name, typeName string, params map[string]any, opts ...step.Option) *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.ConvertProperty{
-		Name:         stepName,
+
+	convertProperty := &step.ConvertProperty{
+		PropertyName: name,
 		NamedType:    typeName,
-		PropertyName: propertyName,
 		Params:       params,
-	})
+	}
+
+	step.ApplyOptions(convertProperty, opts...)
+
+	b.addStep(convertProperty)
+	return b
+}
+
+func (b *Builder) ConvertVariableTo(name string, targetType any, params map[string]any, opts ...step.Option) *Builder {
+	if b.err != nil {
+		return b
+	}
+
+	convertVariable := &step.ConvertVariable{
+		VariableName: name,
+		TargetType:   targetType,
+		Params:       params,
+	}
+
+	step.ApplyOptions(convertVariable, opts...)
+
+	b.addStep(convertVariable)
+	return b
+}
+
+func (b *Builder) ConvertVariableToNamed(name, typeName string, params map[string]any, opts ...step.Option) *Builder {
+	if b.err != nil {
+		return b
+	}
+
+	convertVariable := &step.ConvertVariable{
+		VariableName: name,
+		NamedType:    typeName,
+		Params:       params,
+	}
+
+	step.ApplyOptions(convertVariable, opts...)
+
+	b.addStep(convertVariable)
 	return b
 }
 
 // Choice adds choice step to the current step level.
-func (b *Builder) Choice(stepName string) *ChoiceStepBuilder {
+func (b *Builder) Choice() *ChoiceBuilder {
 	if b.err != nil {
-		return &ChoiceStepBuilder{builder: b}
+		return &ChoiceBuilder{builder: b}
 	}
 
-	choiceStep := &step.Choice{Name: stepName}
-	b.addStep(choiceStep)
+	choice := &step.Choice{}
 
-	return &ChoiceStepBuilder{builder: b, choiceStep: choiceStep}
+	b.addStep(choice)
+
+	return &ChoiceBuilder{builder: b, choiceStep: choice}
 }
 
 // SetHeader adds steps to set message header.
-func (b *Builder) SetHeader(stepName, headerName string, headerValue expr.Definition) *Builder {
+func (b *Builder) SetHeader(name string, value expr.Definition, opts ...step.Option) *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.SetHeader{
-		Name:        stepName,
-		HeaderName:  headerName,
-		HeaderValue: headerValue,
-	})
+
+	setHeader := &step.SetHeader{
+		HeaderName:  name,
+		HeaderValue: value,
+	}
+
+	step.ApplyOptions(setHeader, opts...)
+
+	b.addStep(setHeader)
 	return b
 }
 
 // Try adds try-catch-finally step.
-func (b *Builder) Try(stepName string, configure func(b *Builder)) *TryStepBuilder {
+func (b *Builder) Try(block func(b *Builder)) *TryBuilder {
 	if b.err != nil {
-		return &TryStepBuilder{builder: b}
+		return &TryBuilder{builder: b}
 	}
 
-	tryStep := &step.Try{Name: stepName}
+	tryStep := &step.Try{}
 	b.addStep(tryStep)
 
 	b.pushStack(&tryStep.Steps)
-	configure(b) // configure try
+	block(b) // block try
 	b.popStack()
 
-	return &TryStepBuilder{builder: b, tryStep: tryStep}
+	return &TryBuilder{builder: b, tryStep: tryStep}
 }
 
-func (b *Builder) SetError(stepName string, err error) *Builder {
+func (b *Builder) SetError(err error, opts ...step.Option) *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.SetError{
-		Name:  stepName,
+
+	setError := &step.SetError{
 		Error: err,
-	})
+	}
+
+	step.ApplyOptions(setError, opts...)
+
+	b.addStep(setError)
 	return b
 }
 
 // SetProperty adds step to set an exchange property.
-func (b *Builder) SetProperty(stepName, propertyName string, propertyValue expr.Definition) *Builder {
+func (b *Builder) SetProperty(name string, value expr.Definition, opts ...step.Option) *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.SetProperty{
-		Name:          stepName,
-		PropertyName:  propertyName,
-		PropertyValue: propertyValue,
-	})
+
+	setProperty := &step.SetProperty{
+		PropertyName:  name,
+		PropertyValue: value,
+	}
+
+	step.ApplyOptions(setProperty, opts...)
+
+	b.addStep(setProperty)
 	return b
 }
 
-func (b *Builder) To(stepName, uri string) *Builder {
+func (b *Builder) SetVariable(name string, value expr.Definition, opts ...step.Option) *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.To{
-		Name: stepName,
-		URI:  uri,
-	})
+
+	setVariable := &step.SetVariable{
+		VariableName:  name,
+		VariableValue: value,
+	}
+
+	step.ApplyOptions(setVariable, opts...)
+
+	b.addStep(setVariable)
 	return b
 }
 
-func (b *Builder) Unmarshal(stepName string, format string, targetType any) *Builder {
+func (b *Builder) To(uri string, opts ...step.Option) *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.Unmarshal{
-		Name:       stepName,
+
+	to := &step.To{
+		URI: uri,
+	}
+
+	step.ApplyOptions(to, opts...)
+
+	b.addStep(to)
+	return b
+}
+
+func (b *Builder) Unmarshal(format string, targetType any, opts ...step.Option) *Builder {
+	if b.err != nil {
+		return b
+	}
+
+	unmarshal := &step.Unmarshal{
 		Format:     format,
 		TargetType: targetType,
-	})
+	}
+
+	step.ApplyOptions(unmarshal, opts...)
+
+	b.addStep(unmarshal)
 	return b
 }
 
-func (b *Builder) Marshal(stepName string, format string) *Builder {
+func (b *Builder) Marshal(format string, opts ...step.Option) *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.Marshal{
-		Name:   stepName,
+
+	marshal := &step.Marshal{
 		Format: format,
-	})
+	}
+
+	step.ApplyOptions(marshal, opts...)
+
+	b.addStep(marshal)
 	return b
 }
 
-func (b *Builder) Delay(stepName string, durMs int64) *Builder {
+func (b *Builder) Delay(durMs int64, opts ...step.Option) *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.Delay{
-		Name:     stepName,
+
+	delay := &step.Delay{
 		Duration: durMs,
-	})
+	}
+
+	step.ApplyOptions(delay, opts...)
+
+	b.addStep(delay)
 	return b
 }
 
-func (b *Builder) Log(stepName string, level api.LogLevel, msg string) *Builder {
+func (b *Builder) Log(level api.LogLevel, msg string, opts ...step.Option) *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.Log{
-		Name:  stepName,
+
+	log := &step.Log{
 		Msg:   msg,
 		Level: level,
-	})
+	}
+
+	step.ApplyOptions(log, opts...)
+
+	b.addStep(log)
 	return b
 }
 
-func (b *Builder) LogInfo(stepName, msg string) *Builder {
-	return b.Log(stepName, api.LogLevelInfo, msg)
+func (b *Builder) LogInfo(msg string, opts ...step.Option) *Builder {
+	return b.Log(api.LogLevelInfo, msg, opts...)
 }
 
-func (b *Builder) LogWarn(stepName, msg string) *Builder {
-	return b.Log(stepName, api.LogLevelWarn, msg)
+func (b *Builder) LogWarn(msg string, opts ...step.Option) *Builder {
+	return b.Log(api.LogLevelWarn, msg, opts...)
 }
 
-func (b *Builder) LogError(stepName, msg string) *Builder {
-	return b.Log(stepName, api.LogLevelError, msg)
+func (b *Builder) LogError(msg string, opts ...step.Option) *Builder {
+	return b.Log(api.LogLevelError, msg, opts...)
 }
 
-func (b *Builder) LogDebug(stepName, msg string) *Builder {
-	return b.Log(stepName, api.LogLevelDebug, msg)
+func (b *Builder) LogDebug(msg string, opts ...step.Option) *Builder {
+	return b.Log(api.LogLevelDebug, msg, opts...)
 }
 
-// Func adds FuncStep to the current Route.
-// userFunc must be:
+// Func adds step.Fn to the current Route.
+// userFunc must be one of:
 //  1. string, function must be registered by means of Runtime.RegisterFunc / Runtime.MustRegisterFunc.
 //  2. inline fn with type fn(*Exchange).
-func (b *Builder) Func(stepName string, userFunc any) *Builder {
+func (b *Builder) Func(userFunc any, opts ...step.Option) *Builder {
 	if b.err != nil {
 		return b
 	}
@@ -323,16 +438,19 @@ func (b *Builder) Func(stepName string, userFunc any) *Builder {
 		panic(fmt.Errorf("userFunc expected string or fn(*Exchange), but got %T", fnt))
 	}
 
-	b.addStep(&step.Fn{
-		Name: stepName,
+	fn := &step.Fn{
 		Func: userFunc,
-	})
+	}
+
+	step.ApplyOptions(fn, opts...)
+
+	b.addStep(fn)
 	return b
 }
 
 // Pipeline adds new pipeline.
 // Function configure will be called to configure PipelineStep.
-func (b *Builder) Pipeline(stepName string, stopOnError bool, configure func(b *Builder)) *Builder {
+/*func (b *Builder) Pipeline(stepName string, stopOnError bool, configure func(b *Builder)) *Builder {
 	if b.err != nil {
 		return b
 	}
@@ -349,60 +467,76 @@ func (b *Builder) Pipeline(stepName string, stopOnError bool, configure func(b *
 	b.popStack() // pop
 
 	return b
-}
+}*/
 
-func (b *Builder) Multicast(stepName string) *MulticastStepBuilder {
+func (b *Builder) Multicast() *MulticastBuilder {
 	if b.err != nil {
-		return &MulticastStepBuilder{builder: b}
+		return &MulticastBuilder{builder: b}
 	}
 
 	multicastStep := &step.Multicast{
-		Name:        stepName,
 		Parallel:    false,
 		StopOnError: false,
 	}
 	b.addStep(multicastStep)
 
-	return &MulticastStepBuilder{builder: b, multicastStep: multicastStep}
+	return &MulticastBuilder{builder: b, multicastStep: multicastStep}
 }
 
-func (b *Builder) Loop(stepName string, predicate expr.Definition, copyExchange bool, configure func(b *Builder)) *Builder {
+func (b *Builder) While(predicate expr.Definition) *WhileBuilder {
+	if b.err != nil {
+		return &WhileBuilder{builder: b}
+	}
+
+	loopStep := &step.WhileLoop{
+		Predicate: predicate,
+	}
+	b.addStep(loopStep)
+
+	return &WhileBuilder{builder: b, loopStep: loopStep}
+}
+
+func (b *Builder) RemoveHeader(names []string, opts ...step.Option) *Builder {
 	if b.err != nil {
 		return b
 	}
 
-	step := &step.Loop{
-		Name:         stepName,
-		Predicate:    predicate,
-		CopyExchange: copyExchange,
+	removeHeader := &step.RemoveHeader{
+		HeaderNames: names,
 	}
-	b.addStep(step)
 
-	b.pushStack(&step.Steps)
-	configure(b)
-	b.popStack()
+	step.ApplyOptions(removeHeader, opts...)
 
+	b.addStep(removeHeader)
 	return b
 }
 
-func (b *Builder) RemoveHeader(stepName string, headerName ...string) *Builder {
+func (b *Builder) RemoveProperty(names []string, opts ...step.Option) *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.RemoveHeader{
-		Name:        stepName,
-		HeaderNames: headerName,
-	})
+
+	removeProperty := &step.RemoveProperty{
+		PropertyNames: names,
+	}
+
+	step.ApplyOptions(removeProperty, opts...)
+
+	b.addStep(removeProperty)
 	return b
 }
 
-func (b *Builder) RemoveProperty(stepName string, propertyName ...string) *Builder {
+func (b *Builder) RemoveVariable(names []string, opts ...step.Option) *Builder {
 	if b.err != nil {
 		return b
 	}
-	b.addStep(&step.RemoveProperty{
-		Name:          stepName,
-		PropertyNames: propertyName,
-	})
+
+	removeVariable := &step.RemoveVariable{
+		VariableNames: names,
+	}
+
+	step.ApplyOptions(removeVariable, opts...)
+
+	b.addStep(removeVariable)
 	return b
 }

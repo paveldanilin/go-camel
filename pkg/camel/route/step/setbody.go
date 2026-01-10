@@ -5,9 +5,14 @@ import (
 	"github.com/paveldanilin/go-camel/pkg/camel/route/expr"
 )
 
+// SetBody represents a set body route step definition.
 type SetBody struct {
 	Name      string
 	BodyValue expr.Definition
+}
+
+func (s *SetBody) setStepName(stepName string) {
+	s.Name = stepName
 }
 
 func (s *SetBody) StepName() string {

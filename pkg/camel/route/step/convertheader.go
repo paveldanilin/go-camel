@@ -10,6 +10,10 @@ type ConvertHeader struct {
 	Params     map[string]any
 }
 
+func (s *ConvertHeader) setStepName(stepName string) {
+	s.Name = stepName
+}
+
 func (s *ConvertHeader) StepName() string {
 	if s.Name == "" {
 		if s.TargetType == nil {

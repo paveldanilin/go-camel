@@ -22,6 +22,10 @@ type Choice struct {
 	Otherwise []api.RouteStep
 }
 
+func (s *Choice) setStepName(stepName string) {
+	s.Name = stepName
+}
+
 func (s *Choice) StepName() string {
 	if s.Name == "" {
 		when := make([]string, len(s.WhenCases))

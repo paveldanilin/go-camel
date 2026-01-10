@@ -7,6 +7,10 @@ type SetError struct {
 	Error error
 }
 
+func (s *SetError) setStepName(stepName string) {
+	s.Name = stepName
+}
+
 func (s *SetError) StepName() string {
 	if s.Name == "" {
 		return fmt.Sprintf("setError[%s]", s.Error)

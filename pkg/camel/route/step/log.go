@@ -15,6 +15,10 @@ type Log struct {
 	Level api.LogLevel
 }
 
+func (s *Log) setStepName(stepName string) {
+	s.Name = stepName
+}
+
 func (s *Log) StepName() string {
 	if s.Name == "" {
 		return fmt.Sprintf("log[%d:%s]", s.Level, s.Msg)

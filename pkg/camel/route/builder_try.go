@@ -6,13 +6,18 @@ import (
 	"github.com/paveldanilin/go-camel/pkg/camel/route/step"
 )
 
-type TryStepBuilder struct {
+type TryBuilder struct {
 	builder *Builder
 	tryStep *step.Try
 }
 
+func (tb *TryBuilder) WithName(stepName string) *TryBuilder {
+	step.ApplyOptions(tb.tryStep, step.WithName(stepName))
+	return tb
+}
+
 // Catch adds 'catch' to the current TryStep.
-func (tb *TryStepBuilder) Catch(errorMatcher errmatcher.Definition, configure func(b *Builder)) *TryStepBuilder {
+func (tb *TryBuilder) Catch(errorMatcher errmatcher.Definition, then func(b *Builder)) *TryBuilder {
 	if tb.builder.err != nil {
 		return tb
 	}
@@ -20,7 +25,7 @@ func (tb *TryStepBuilder) Catch(errorMatcher errmatcher.Definition, configure fu
 	catchClause := step.CatchWhen{ErrorMatcher: errorMatcher}
 
 	tb.builder.pushStack(&catchClause.Steps)
-	configure(tb.builder)
+	then(tb.builder)
 	tb.builder.popStack()
 
 	tb.tryStep.WhenCatches = append(tb.tryStep.WhenCatches, catchClause)
@@ -29,7 +34,7 @@ func (tb *TryStepBuilder) Catch(errorMatcher errmatcher.Definition, configure fu
 }
 
 // Finally adds 'finally' and returns to the main builder.
-func (tb *TryStepBuilder) Finally(configure func(b *Builder)) *Builder {
+func (tb *TryBuilder) Finally(block func(b *Builder)) *Builder {
 	if tb.builder.err != nil {
 		return tb.builder
 	}
@@ -39,12 +44,12 @@ func (tb *TryStepBuilder) Finally(configure func(b *Builder)) *Builder {
 	}
 
 	tb.builder.pushStack(&tb.tryStep.FinallySteps)
-	configure(tb.builder)
+	block(tb.builder)
 	tb.builder.popStack()
 
 	return tb.builder // main builder
 }
 
-func (tb *TryStepBuilder) EndTry() *Builder {
+func (tb *TryBuilder) EndTry() *Builder {
 	return tb.builder
 }
