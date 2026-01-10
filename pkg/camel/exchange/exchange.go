@@ -10,7 +10,8 @@ type Exchange struct {
 	id    string
 	start time.Time
 
-	properties Map
+	properties Properties
+	variables  Variables
 	message    *Message
 	err        error
 
@@ -29,7 +30,8 @@ func NewExchange(c context.Context) *Exchange {
 	e := &Exchange{
 		id:         uuid.NewString(),
 		start:      time.Now(),
-		properties: newMap(),
+		properties: Properties{},
+		variables:  Variables{},
 		message:    NewMessage(),
 		ctx:        ctx,
 		cancel:     cancel,
@@ -89,12 +91,20 @@ func (e *Exchange) CheckCancelOrTimeout() error {
 	}
 }
 
-func (e *Exchange) Properties() *Map {
+func (e *Exchange) Properties() *Properties {
 	return &e.properties
 }
 
 func (e *Exchange) Property(name string) (any, bool) {
 	return e.properties.Get(name)
+}
+
+func (e *Exchange) PropertyOrDefault(name string, def any) any {
+	v, exists := e.properties.Get(name)
+	if !exists {
+		v = def
+	}
+	return v
 }
 
 func (e *Exchange) SetProperty(name string, value any) {
@@ -129,15 +139,41 @@ func (e *Exchange) SetError(err error) {
 	e.err = err
 }
 
+func (e *Exchange) Variables() *Variables {
+	return &e.variables
+}
+
+func (e *Exchange) Variable(name string) (any, bool) {
+	return e.variables.Get(name)
+}
+
+func (e *Exchange) SetVariable(name string, value any) {
+	e.variables.Set(name, value)
+}
+
+func (e *Exchange) HasVariable(name string) bool {
+	return e.variables.Has(name)
+}
+
+func (e *Exchange) RemoveVariable(name string) {
+	e.variables.Remove(name)
+}
+
 func (e *Exchange) Copy() *Exchange {
 	if e == nil {
 		return nil
 	}
 
-	var propsCopy Map
+	var propsCopy Properties
 	if e.properties != nil {
 		propsCopy = e.properties.Copy()
 	}
+
+	var varsCopy Variables
+	if e.variables != nil {
+		varsCopy = e.variables.Copy()
+	}
+
 	var msgCopy *Message
 	if e.message != nil {
 		msgCopy = e.message.Copy()
@@ -146,6 +182,7 @@ func (e *Exchange) Copy() *Exchange {
 	return &Exchange{
 		id:          uuid.NewString(),
 		properties:  propsCopy,
+		variables:   varsCopy,
 		start:       e.start,
 		message:     msgCopy,
 		err:         e.err,
@@ -165,14 +202,37 @@ func (e *Exchange) Copy() *Exchange {
 //	body 		- Message body
 //	header 		- Message headers map (k-v)
 //	error		- Exchange error
-//	property	- Exchange properties map (kv-)
+//	property	- Exchange properties map (k-v)
+//	variable	- Exchange variables map (k-v)
 func (e *Exchange) AsMap() map[string]any {
+	var messageHeaders map[string]any
+	if e.message == nil || e.message.headers == nil {
+		messageHeaders = map[string]any{}
+	} else {
+		messageHeaders = e.message.headers
+	}
+
+	var properties map[string]any
+	if e.properties == nil {
+		properties = map[string]any{}
+	} else {
+		properties = e.properties
+	}
+
+	var variables map[string]any
+	if e.variables == nil {
+		variables = map[string]any{}
+	} else {
+		variables = e.variables
+	}
+
 	return map[string]any{
 		"id":         e.Message().Id(),
 		"exchangeId": e.Id(),
-		"body":       e.Message().Body,
-		"header":     e.Message().Headers().All(),
+		"property":   properties,
+		"variable":   variables,
 		"error":      e.Error(),
-		"property":   e.Properties().All(),
+		"body":       e.Message().Body(),
+		"header":     messageHeaders,
 	}
 }

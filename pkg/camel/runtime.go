@@ -10,11 +10,13 @@ import (
 	"github.com/paveldanilin/go-camel/pkg/camel/dataformat"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 	"github.com/paveldanilin/go-camel/pkg/camel/logger"
+	"github.com/paveldanilin/go-camel/pkg/camel/route"
 	"github.com/paveldanilin/go-camel/pkg/camel/template"
 	"github.com/paveldanilin/go-camel/pkg/camel/uri"
 	"log/slog"
 	"os"
 	"reflect"
+	"runtime/debug"
 	"sync"
 )
 
@@ -48,7 +50,8 @@ type FuncRegistry interface {
 	Func(name string) func(*exchange.Exchange)
 }
 
-type route struct {
+// rtRoute represents a runtime route that can be 'called'.
+type rtRoute struct {
 	name     string
 	from     string
 	producer api.Producer
@@ -74,7 +77,7 @@ type Runtime struct {
 	exchangeFactory    api.ExchangeFactory
 	converterRegistry  ConverterRegistry
 
-	routes    map[string]*route
+	routes    map[string]*rtRoute
 	endpoints map[string]api.Endpoint
 	consumers []api.Consumer
 
@@ -111,7 +114,7 @@ func NewRuntime(config RuntimeConfig) *Runtime {
 
 		messageHistory: config.MessageHistory,
 
-		routes:    map[string]*route{},
+		routes:    map[string]*rtRoute{},
 		endpoints: map[string]api.Endpoint{},
 		consumers: []api.Consumer{},
 
@@ -204,7 +207,7 @@ func (rt *Runtime) MustRegisterDataFormat(name string, dataFormat api.DataFormat
 	}
 }
 
-func (rt *Runtime) RegisterRoute(routeDefinition *Route) error {
+func (rt *Runtime) RegisterRoute(routeDefinition *route.Definition) error {
 	if _, exists := rt.routes[routeDefinition.Name]; exists {
 		rt.logger.Error(context.Background(), fmt.Sprintf("Route with name '%s' already registered", routeDefinition.Name))
 		return errors.New("route already registered: " + routeDefinition.Name)
@@ -217,8 +220,8 @@ func (rt *Runtime) RegisterRoute(routeDefinition *Route) error {
 		dataFormatRegistry: rt.dataFormatRegistry,
 		converterRegistry:  rt.converterRegistry,
 		endpointRegistry:   rt,
-		preProcessor:       rt.preProcessor,
-		postProcessor:      rt.postProcessor,
+		preProcessHook:     rt.preProcessor,
+		postProcessHook:    rt.postProcessor,
 	}, routeDefinition)
 	if err != nil {
 		rt.logger.Error(context.Background(), "Route compilation failed", slog.String("error", err.Error()))
@@ -231,7 +234,7 @@ func (rt *Runtime) RegisterRoute(routeDefinition *Route) error {
 	return nil
 }
 
-func (rt *Runtime) MustRegisterRoute(routeDefinition *Route) {
+func (rt *Runtime) MustRegisterRoute(routeDefinition *route.Definition) {
 	err := rt.RegisterRoute(routeDefinition)
 	if err != nil {
 		panic(fmt.Errorf("camel: failed to register step: %w", err))
@@ -254,7 +257,7 @@ func (rt *Runtime) NewExchange(c context.Context) *exchange.Exchange {
 		newExchange = rt.exchangeFactory.NewExchange(c)
 	}
 	if rt.messageHistory {
-		newExchange.Message().SetHeader(exchange.CamelHeaderMessageHistory, exchange.NewMessageHistory())
+		newExchange.Message().SetHeader(exchange.MessageHeaderHistory, exchange.NewMessageHistory())
 	}
 	return newExchange
 }
@@ -270,49 +273,58 @@ func (rt *Runtime) postProcessor(e *exchange.Exchange) {
 
 }
 
-func (rt *Runtime) Send(ctx context.Context, uri string, body any, headers map[string]any) (*exchange.Exchange, error) {
+func (rt *Runtime) Send(ctx context.Context, uri string, body any, headers map[string]any) (ex *exchange.Exchange, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			stackTrace := string(debug.Stack())
+			err = NewPanicError(ex, r, stackTrace)
+			rt.logger.Error(ctx, fmt.Sprintf("Failed to send body and headers (uri %s): %s", uri, err.Error()),
+				slog.String("uri", uri),
+				slog.Any("body", body),
+				slog.Any("headers", headers),
+				slog.Any("panic_value", r),
+				slog.String("stack_trace", stackTrace))
+		}
+	}()
+
 	endpoint := rt.Endpoint(uri)
 	if endpoint == nil {
+		rt.logger.Error(ctx, fmt.Sprintf("Endpoint not found (uri %s)", uri),
+			slog.String("uri", uri),
+			slog.Any("body", body),
+			slog.Any("headers", headers))
 		return nil, errors.New("endpoint not found for uri: " + uri)
 	}
 
 	producer, err := endpoint.CreateProducer()
 	if err != nil {
-		return nil, err
+		rt.logger.Error(ctx, fmt.Sprintf("Failed to create producer (uri %s): %s", uri, err),
+			slog.String("uri", uri),
+			slog.Any("body", body),
+			slog.Any("headers", headers),
+			slog.String("error", err.Error()))
+		return nil, fmt.Errorf("failed to create producer (uri %s): %w", uri, err)
 	}
 
-	exchangeCopy := rt.NewExchange(ctx)
-	exchangeCopy.Message().Body = body
-	exchangeCopy.Message().Headers().SetAll(headers)
+	ex = rt.NewExchange(ctx)
+	ex.SetProperty(exchange.PropertyEndpointUri, uri)
+	ex.Message().SetBody(body)
+	ex.Message().Headers().SetAll(headers)
 
-	producer.Process(exchangeCopy)
+	producer.Process(ex)
 
-	return exchangeCopy, exchangeCopy.Error()
+	return ex, ex.Error()
 }
 
-func (rt *Runtime) SendBody(ctx context.Context, uri string, body any) (*exchange.Message, error) {
-	exchangeCopy, err := rt.Send(ctx, uri, body, nil)
-	if err != nil {
-		return nil, err
-	}
-	if exchangeCopy.Error() != nil {
-		return nil, exchangeCopy.Error()
-	}
-	return exchangeCopy.Message(), nil
+func (rt *Runtime) SendBody(ctx context.Context, uri string, body any) (*exchange.Exchange, error) {
+	return rt.Send(ctx, uri, body, exchange.MessageHeaders{})
 }
 
-func (rt *Runtime) SendHeaders(ctx context.Context, uri string, headers map[string]any) (*exchange.Message, error) {
-	exchangeCopy, err := rt.Send(ctx, uri, nil, headers)
-	if err != nil {
-		return nil, err
-	}
-	if exchangeCopy.Error() != nil {
-		return nil, exchangeCopy.Error()
-	}
-	return exchangeCopy.Message(), nil
+func (rt *Runtime) SendHeaders(ctx context.Context, uri string, headers map[string]any) (*exchange.Exchange, error) {
+	return rt.Send(ctx, uri, nil, headers)
 }
 
-func (rt *Runtime) Route(routeId string) *route {
+func (rt *Runtime) Route(routeId string) *rtRoute {
 	if r, exists := rt.routes[routeId]; exists {
 		return r
 	}

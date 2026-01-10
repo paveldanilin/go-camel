@@ -1,14 +1,14 @@
 package env
 
-type MapEnv struct {
+type Map struct {
 	vars map[string]string
 }
 
-func NewMapEnv(vars map[string]string) *MapEnv {
-	return &MapEnv{vars: vars}
+func NewMap(vars map[string]string) *Map {
+	return &Map{vars: vars}
 }
 
-func (env *MapEnv) LookupVar(name string) (string, bool) {
+func (env *Map) LookupVar(name string) (string, bool) {
 	v, exists := env.vars[name]
 	return v, exists
 }

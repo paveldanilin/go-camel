@@ -9,7 +9,8 @@ import (
 	"github.com/paveldanilin/go-camel/pkg/camel/converter"
 	"github.com/paveldanilin/go-camel/pkg/camel/env"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
-	"github.com/paveldanilin/go-camel/pkg/camel/expr"
+	"github.com/paveldanilin/go-camel/pkg/camel/route"
+	"github.com/paveldanilin/go-camel/pkg/camel/route/expr"
 	"testing"
 )
 
@@ -21,15 +22,15 @@ func TestRoute_SetBody(t *testing.T) {
 
 	// Build camel step definition
 	route, err := camel.NewRoute("sum", "direct:sum").
-		Choice("test input data").
-		When(expr.Simple("header.a==nil"), func(b *camel.RouteBuilder) {
-			b.SetError("", errors.New("not defined mandatory parameter: a"))
+		Choice().
+		When(expr.Simple("header.a==nil"), func(b *route.Builder) {
+			b.SetError(errors.New("not defined mandatory parameter: a"))
 		}).
-		When(expr.Simple("header.b==nil"), func(b *camel.RouteBuilder) {
-			b.SetError("", errors.New("not defined mandatory parameter: b"))
+		When(expr.Simple("header.b==nil"), func(b *route.Builder) {
+			b.SetError(errors.New("not defined mandatory parameter: b"))
 		}).
-		Otherwise(func(b *camel.RouteBuilder) {
-			b.SetBody("", expr.Simple("header.a + header.b"))
+		Otherwise(func(b *route.Builder) {
+			b.SetBody(expr.Simple("header.a + header.b"))
 		}).
 		Build()
 	if err != nil {
@@ -50,13 +51,13 @@ func TestRoute_SetBody(t *testing.T) {
 
 	tests := []struct {
 		name       string
-		headers    exchange.Map
+		headers    exchange.MessageHeaders
 		wantErr    bool
 		wantResult int
 	}{
 		{
 			name: "Success",
-			headers: exchange.Map{
+			headers: exchange.MessageHeaders{
 				"a": 2,
 				"b": 2,
 			},
@@ -65,14 +66,14 @@ func TestRoute_SetBody(t *testing.T) {
 		},
 		{
 			name: "Not passed mandatory parameter: a",
-			headers: exchange.Map{
+			headers: exchange.MessageHeaders{
 				"b": 2,
 			},
 			wantErr: true,
 		},
 		{
 			name: "Not passed mandatory parameter: b",
-			headers: exchange.Map{
+			headers: exchange.MessageHeaders{
 				"a": 2,
 			},
 			wantErr: true,
@@ -87,8 +88,8 @@ func TestRoute_SetBody(t *testing.T) {
 				return
 			}
 
-			if !tt.wantErr && tt.wantResult != result.Body {
-				t.Errorf("TestRoute_SetBody(): expected result %d, but got %d", tt.wantResult, result.Body)
+			if !tt.wantErr && tt.wantResult != result.Message().Body() {
+				t.Errorf("TestRoute_SetBody(): expected result %d, but got %d", tt.wantResult, result.Message().Body())
 			}
 		})
 	}
@@ -107,14 +108,14 @@ func TestRoute_Unmarshal(t *testing.T) {
 
 	// Build camel step definition
 	route, err := camel.NewRoute("isPersonAdult", "direct:isPersonAdult").
-		Unmarshal("", "json", person{}).
-		Choice("test person age").
+		Unmarshal("json", person{}).
+		Choice().
 		// now body contains person{}
-		When(expr.Simple("body.Age>=18"), func(b *camel.RouteBuilder) {
-			b.SetBody("person is adult", expr.Constant(true))
+		When(expr.Simple("body.Age>=18"), func(b *route.Builder) {
+			b.SetBody(expr.Constant(true))
 		}).
-		When(expr.Simple("body.Age<18"), func(b *camel.RouteBuilder) {
-			b.SetBody("person is not adult", expr.Constant(false))
+		When(expr.Simple("body.Age<18"), func(b *route.Builder) {
+			b.SetBody(expr.Constant(false))
 		}).
 		EndChoice().
 		Build()
@@ -143,8 +144,8 @@ func TestRoute_Unmarshal(t *testing.T) {
 	}
 
 	expectedResult := true
-	if expectedResult != result.Body {
-		t.Errorf("TestRoute_Unmarshal(): expected result %v, but got %v", expectedResult, result.Body)
+	if expectedResult != result.Message().Body() {
+		t.Errorf("TestRoute_Unmarshal(): expected result %v, but got %v", expectedResult, result.Message().Body())
 	}
 }
 
@@ -174,8 +175,8 @@ func TestRoute_ConvertBody(t *testing.T) {
 	defer testCamelRuntime.Stop()
 
 	route, err := camel.NewRoute("convertData", "direct:conv").
-		ConvertBodyToNamed("", "*test.operation", nil).
-		SetBody("", expr.Simple("body.X + body.Y + 6.2")).
+		ConvertBodyToNamed("*test.operation", nil).
+		SetBody(expr.Simple("body.X + body.Y + 6.2")).
 		Build()
 
 	if err != nil {
@@ -213,12 +214,12 @@ func TestRoute_SetHeader(t *testing.T) {
 
 	// Build camel step definition
 	route, err := camel.NewRoute("concat", "direct:concat").
-		SetHeader("", "year", expr.Constant(2025)).
-		SetHeader("", "month", expr.Simple("'11'")).
-		SetHeader("", "day", expr.Func(func(_ *exchange.Exchange) (any, error) {
+		SetHeader("year", expr.Constant(2025)).
+		SetHeader("month", expr.Simple("'11'")).
+		SetHeader("day", expr.Func(func(_ *exchange.Exchange) (any, error) {
 			return 8, nil
 		})).
-		SetBody("", expr.Simple("toString(header.year) + '.' + header.month + '.' + toString(header.day)")).
+		SetBody(expr.Simple("toString(header.year) + '.' + header.month + '.' + toString(header.day)")).
 		Build()
 	if err != nil {
 		t.Fatalf("TestRoute_SetHeader(): failed to build 'concat' step: %s", err)
@@ -227,7 +228,7 @@ func TestRoute_SetHeader(t *testing.T) {
 	// Register step in camel runtime
 	err = testCamelRuntime.RegisterRoute(route)
 	if err != nil {
-		t.Fatalf("TestRoute_SetHeader(): failed to register 'concat' step in runtime: %s", err)
+		t.Fatalf("TestRoute_SetHeader(): failed to register 'concat' route in runtime: %s", err)
 	}
 
 	// Start camel runtime
@@ -242,15 +243,15 @@ func TestRoute_SetHeader(t *testing.T) {
 	}
 
 	wantResult := "2025.11.8"
-	if result.Body != wantResult {
-		t.Fatalf("TestRoute_SetHeader(): expected result %v, but got %v", wantResult, result.Body)
+	if result.Message().Body() != wantResult {
+		t.Fatalf("TestRoute_SetHeader(): expected result %v, but got %v", wantResult, result.Message().Body())
 	}
 }
 
 func TestRoute_DynamicFrom(t *testing.T) {
 	var testCamelRuntime = camel.NewRuntime(camel.RuntimeConfig{
 		Name: "CamelTestRuntime",
-		Env: env.NewMapEnv(map[string]string{
+		Env: env.NewMap(map[string]string{
 			"endpointName": "concat",
 		}),
 	})
@@ -260,36 +261,81 @@ func TestRoute_DynamicFrom(t *testing.T) {
 
 	// Build camel step definition
 	route, err := camel.NewRoute("concat", "direct:${endpointName}").
-		SetHeader("", "year", expr.Constant(2025)).
-		SetHeader("", "month", expr.Simple("'11'")).
-		SetHeader("", "day", expr.Func(func(_ *exchange.Exchange) (any, error) {
+		SetHeader("year", expr.Constant(2025)).
+		SetHeader("month", expr.Simple("'11'")).
+		SetHeader("day", expr.Func(func(_ *exchange.Exchange) (any, error) {
 			return 8, nil
 		})).
-		SetBody("", expr.Simple("toString(header.year) + '.' + header.month + '.' + toString(header.day)")).
+		SetBody(expr.Simple("toString(header.year) + '.' + header.month + '.' + toString(header.day)")).
 		Build()
 	if err != nil {
-		t.Fatalf("TestRoute_SetHeader(): failed to build 'concat' step: %s", err)
+		t.Fatalf("TestRoute_DynamicFrom(): failed to build 'concat' step: %s", err)
 	}
 
 	// Register step in camel runtime
 	err = testCamelRuntime.RegisterRoute(route)
 	if err != nil {
-		t.Fatalf("TestRoute_SetHeader(): failed to register 'concat' step in runtime: %s", err)
+		t.Fatalf("TestRoute_DynamicFrom(): failed to register 'concat' route in runtime: %s", err)
 	}
 
 	// Start camel runtime
 	err = testCamelRuntime.Start()
 	if err != nil {
-		t.Fatalf("TestRoute_SetHeader(): failed to start camel runtime: %s", err)
+		t.Fatalf("TestRoute_DynamicFrom(): failed to start camel runtime: %s", err)
 	}
 
 	result, err := testCamelRuntime.SendHeaders(context.TODO(), "direct:concat", nil)
 	if err != nil {
-		t.Fatalf("TestRoute_SetHeader(): failed to call route: %s", err)
+		t.Fatalf("TestRoute_DynamicFrom(): failed to call route: %s", err)
 	}
 
 	wantResult := "2025.11.8"
-	if result.Body != wantResult {
-		t.Fatalf("TestRoute_SetHeader(): expected result %v, but got %v", wantResult, result.Body)
+	if result.Message().Body() != wantResult {
+		t.Fatalf("TestRoute_DynamicFrom(): expected result %v, but got %v", wantResult, result.Message().Body())
+	}
+}
+
+func TestRoute_While(t *testing.T) {
+	var testCamelRuntime = camel.NewRuntime(camel.RuntimeConfig{Name: "CamelTestRuntime"})
+	testCamelRuntime.MustRegisterComponent(direct.NewComponent())
+
+	defer testCamelRuntime.Stop()
+
+	// Build camel step definition
+	route, err := camel.NewRoute("reverseNumber", "direct:reverseNumber").
+		SetBody(expr.Constant(0)).
+		While(expr.Simple("header.N != 0")).
+		LoopBody(func(b *route.Builder) {
+			b.SetHeader("reminder", expr.Simple("toInt(header.N) % 10"))
+			b.SetBody(expr.Simple("body*10 + header.reminder"))
+			b.SetHeader("N", expr.Simple("toInt(toInt(header.N) / 10)"))
+		}).
+		Build()
+	if err != nil {
+		t.Fatalf("TestRoute_While(): failed to build 'reverseNumber' step: %s", err)
+	}
+
+	// Register step in camel runtime
+	err = testCamelRuntime.RegisterRoute(route)
+	if err != nil {
+		t.Fatalf("TestRoute_While(): failed to register 'reverseNumber' route in runtime: %s", err)
+	}
+
+	// Start camel runtime
+	err = testCamelRuntime.Start()
+	if err != nil {
+		t.Fatalf("TestRoute_While(): failed to start camel runtime: %s", err)
+	}
+
+	result, err := testCamelRuntime.SendHeaders(context.TODO(), "direct:reverseNumber", map[string]any{
+		"N": 123456789,
+	})
+	if err != nil {
+		t.Fatalf("TestRoute_While(): failed to call route: %s", err)
+	}
+
+	wantResult := 987654321
+	if result.Message().Body() != wantResult {
+		t.Fatalf("TestRoute_While(): expected result %v, but got %v", wantResult, result.Message().Body())
 	}
 }

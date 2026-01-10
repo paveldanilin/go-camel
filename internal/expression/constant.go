@@ -6,7 +6,7 @@ type constant struct {
 	value any
 }
 
-func NewConst(value any) *constant {
+func NewConstant(value any) *constant {
 	return &constant{
 		value: value,
 	}

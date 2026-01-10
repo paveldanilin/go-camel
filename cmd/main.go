@@ -6,9 +6,11 @@ import (
 	"github.com/paveldanilin/go-camel/pkg/camel"
 	"github.com/paveldanilin/go-camel/pkg/camel/component/direct"
 	"github.com/paveldanilin/go-camel/pkg/camel/component/timer"
-	"github.com/paveldanilin/go-camel/pkg/camel/errs"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
-	"github.com/paveldanilin/go-camel/pkg/camel/expr"
+	"github.com/paveldanilin/go-camel/pkg/camel/route"
+	"github.com/paveldanilin/go-camel/pkg/camel/route/errmatcher"
+	"github.com/paveldanilin/go-camel/pkg/camel/route/expr"
+	"github.com/paveldanilin/go-camel/pkg/camel/route/step"
 	"time"
 )
 
@@ -22,44 +24,48 @@ func main() {
 	camelRuntime.MustRegisterComponent(timer.NewComponent())
 
 	camelRuntime.MustRegisterFunc("x10Func", func(e *exchange.Exchange) {
-		e.Message().Body = e.Message().Body.(int) * 100
+		e.Message().SetBody(e.Message().Body().(int) * 100)
 	})
 
 	r, err := camel.NewRoute("sum", "direct:sum").
-		SetBody("calc sum", expr.Simple("header.a + header.b")).
-		Choice("test sum result").
-		When(expr.Simple("body == 40"), func(b *camel.RouteBuilder) {
-			b.Delay("", 2500)
-			b.SetBody("double body value", expr.Simple("body * 2"))
+		SetBody(expr.Simple("header.a + header.b"), step.WithName("CalcSum")).
+		Choice().
+		When(expr.Simple("body == 40"), func(b *route.Builder) {
+			b.Delay(2500, step.WithName("WaitForTimeout"))
+			b.SetBody(expr.Simple("body * 2"))
 		}).
-		Otherwise(func(b *camel.RouteBuilder) {
-			b.SetBody("x*4", expr.Simple("body * 4"))
+		Otherwise(func(b *route.Builder) {
+			b.SetBody(expr.Simple("body * 4"))
 		}).
-		Try("", func(b *camel.RouteBuilder) {
-			b.Func("x10", "x10Func")
+		Try(func(b *route.Builder) {
+			b.Func("x10Func")
 		}).
-		Catch(errs.Any(), func(b *camel.RouteBuilder) {
-			b.SetBody("xxx", expr.Simple("'>>' + error.Error() + '<<'"))
+		Catch(errmatcher.Any(), func(b *route.Builder) {
+			b.SetBody(expr.Simple("'>>' + error.Error() + '<<'"))
 		}).
 		EndTry().
-		Multicast("multi tasks").ParallelProcessing().
-		Process(func(b *camel.RouteBuilder) {
-			b.Delay("", 15000)
-			b.LogWarn("", "xxx> ${body}")
+		Multicast().WithParallelProcessing().
+		Process(func(b *route.Builder) {
+			b.Delay(15000)
+			b.LogInfo("xxx> ${body}")
 		}).
-		Process(func(b *camel.RouteBuilder) {
-			b.Delay("", 5000)
-			b.SetProperty("setGame", "game", expr.Constant("DooM"))
-			b.LogInfo("", "yy>>${body}>>${property.game}")
+		Process(func(b *route.Builder) {
+			b.Delay(5000)
+			// TODO: parallel multicast sync exchange?
+			b.SetProperty("game", expr.Constant("DooM"))
+			b.LogInfo("yy>>${body}>>${property.game}")
 		}).
 		EndMulticast().
+		//Func(func(e *exchange.Exchange) {
+		//	panic("011001101")
+		//}, step.WithName("TestPanic")).
 		Build()
 	if err != nil {
 		panic(err)
 	}
 
-	/*getDepth := fn(routestep camel.RouteStep, depth int) error {
-		fmt.Printf("%s> %s [%T]\n", strings.Repeat("-", depth+1), routestep.StepName(), routestep)
+	/*getDepth := fn(step camel.RouteStep, depth int) error {
+		fmt.Printf("%s> %s [%T]\n", strings.Repeat("-", depth+1), step.StepName(), step)
 		return nil
 	}
 	_ = camel.WalkRoute(r, getDepth)*/
@@ -68,13 +74,13 @@ func main() {
 
 	// Ticks every 5 seconds
 	/*
-		r, errs = camel.NewRoute("ticker", "timer:myTimer?interval=5s").
+		r, errmatcher = camel.NewRoute("ticker", "timer:myTimer?interval=5s").
 			Pipeline("on tick", true, fn(b *dsl.RouteBuilder) {
 				b.SetBody("set count", camel.Simple("'COUNT: ' + string(headers.CamelTimerCounter)"))
 			}).
 			Build()
-		if errs != nil {
-			panic(errs)
+		if errmatcher != nil {
+			panic(errmatcher)
 		}
 		camelRuntime.MustRegisterRoute(r)
 	*/
@@ -87,7 +93,7 @@ func main() {
 
 	// Calc sum
 	ctx, _ := context.WithTimeout(context.Background(), 60*time.Second)
-	ex, err := camelRuntime.Send(ctx, "direct:sum", 0, exchange.Map{
+	ex, err := camelRuntime.Send(ctx, "direct:sum", 0, exchange.MessageHeaders{
 		"a": 1,
 		"b": 39,
 	})
@@ -95,7 +101,7 @@ func main() {
 		panic(err)
 	}
 
-	fmt.Printf("RESULT: %v+", ex.Message().Body)
+	fmt.Printf("RESULT: %v+", ex.Message().Body())
 	//fmt.Printf("%s > SUM: %+v [%T]\n", strings.Join(ex.MessagePath(), "/"), ex.Message().Body, ex.Message().Body)
 
 	time.Sleep(1 * time.Minute)
