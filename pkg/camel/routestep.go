@@ -1,12 +1,11 @@
-package processor
+package camel
 
 import (
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 )
 
-// Hook represents pre- or post-processor hook function.
-type Hook func(exchange2 *exchange.Exchange)
+// RouteStepHook represents pre- or post-processor hook function.
+type RouteStepHook func(*exchange.Exchange)
 
 // RouteStep represents a common processor wrapper.
 // Holds context attributes like route name and route step for each processor instance.
@@ -14,22 +13,22 @@ type Hook func(exchange2 *exchange.Exchange)
 //  1. Set Exchange properties: exchange.PropertyRouteName, exchange.PropertyStepName.
 //  2. If present exchange.MessageHeaderHistory, adds new record to exchange.MessageHistory.
 //  3. Check if context cancelled or timeout reached.
-//  4. Add pre/post Hook.
+//  4. Add pre/post RouteStepHook.
 //
 // EACH processor MUST be wrapped by the RouteStep processor.
 type RouteStep struct {
 	routeName string
 	stepName  string
-	proc      api.Processor
-	preHook   Hook
-	postHook  Hook
+	processor Processor
+	preHook   RouteStepHook
+	postHook  RouteStepHook
 }
 
-func NewRouteStep(routeName, stepName string, proc api.Processor, preHook Hook, postHook Hook) *RouteStep {
+func NewRouteStep(routeName, stepName string, processor Processor, preHook RouteStepHook, postHook RouteStepHook) *RouteStep {
 	return &RouteStep{
 		routeName: routeName,
 		stepName:  stepName,
-		proc:      proc,
+		processor: processor,
 		preHook:   preHook,
 		postHook:  postHook,
 	}
@@ -48,7 +47,7 @@ func (p *RouteStep) Process(e *exchange.Exchange) {
 	e.SetProperty(exchange.PropertyStepName, p.StepName())
 
 	// Check if exchange supports MessageHistory
-	if mh, supportsMessageHistory := e.Message().Header(exchange.MessageHeaderHistory); supportsMessageHistory {
+	if mh, supportsMessageHistory := e.MessageHeader(exchange.MessageHeaderHistory); supportsMessageHistory {
 		if hist, isMessageHistory := mh.(*exchange.MessageHistory); isMessageHistory {
 			rec := exchange.NewMessageHistoryRecord(p.RouteName(), p.StepName())
 			hist.AddRecord(rec)
@@ -72,5 +71,5 @@ func (p *RouteStep) Process(e *exchange.Exchange) {
 		p.preHook(e)
 	}
 
-	p.proc.Process(e)
+	p.processor.Process(e)
 }

@@ -1,21 +1,22 @@
 package processor
 
 import (
-	"github.com/paveldanilin/go-camel/internal/expression"
+	"context"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestLoopCountProcessor(t *testing.T) {
 	loop := NewRepeatLoop(5).
-		AddProcessor(NewSetBody(expression.MustSimple("property.CAMEL_LOOP_INDEX")))
+		AddProcessor(NewSetBody(ExpressionFunc(func(e *exchange.Exchange) (any, error) {
+			it, _ := e.Property(exchange.PropertyLoopIndex)
+			return it, nil
+		})))
 
-	e := exchange.NewExchange(nil)
+	e := exchange.NewExchange(context.TODO())
 
 	loop.Process(e)
 
-	expectedBody := 4
-	if e.Message().Body() != expectedBody {
-		t.Errorf("TestLoopCountProcessor() = %v; want body %v", e.Message().Body(), expectedBody)
-	}
+	assert.Equal(t, 4, e.MessageBody())
 }

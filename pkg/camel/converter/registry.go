@@ -3,12 +3,11 @@ package converter
 import (
 	"errors"
 	"fmt"
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
 	"reflect"
 	"sync"
 )
 
-type registry struct {
+type Registry struct {
 	mu         sync.RWMutex
 	converters map[reflect.Type]map[reflect.Type]any // map[fromType][toType]Converter[From, To]
 	cache      map[string]chainPath                  // cacheKey: "from.String():to.String()" -> chainPath
@@ -25,20 +24,20 @@ type chainStep struct {
 	conv   any
 }
 
-func NewRegistry() *registry {
-	return &registry{
+func NewRegistry() *Registry {
+	return &Registry{
 		converters: make(map[reflect.Type]map[reflect.Type]any),
 		cache:      make(map[string]chainPath),
 		named:      make(map[string]reflect.Type),
 	}
 }
 
-func (r *registry) Register(conv any) error {
+func (r Registry) Register(conv any) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	convType := reflect.TypeOf(conv)
-	if convType.Kind() != reflect.Func && !convType.Implements(reflect.TypeOf((*api.Converter[any, any])(nil)).Elem()) {
+	if convType.Kind() != reflect.Func && !convType.Implements(reflect.TypeOf((*Converter[any, any])(nil)).Elem()) {
 		return errors.New("provided conv must implement Converter[From, To]")
 	}
 
@@ -66,17 +65,17 @@ func (r *registry) Register(conv any) error {
 	return nil
 }
 
-func (r *registry) Type(name string) (reflect.Type, bool) {
+func (r *Registry) Type(name string) (reflect.Type, bool) {
 	t, exists := r.named[name]
 	return t, exists
 }
 
-func (r *registry) CanConvert(fromType, toType reflect.Type) bool {
+func (r *Registry) CanConvert(fromType, toType reflect.Type) bool {
 	_, err := r.findChain(fromType, toType)
 	return err == nil
 }
 
-func (r *registry) Convert(value any, toType reflect.Type, params map[string]any) (any, error) {
+func (r *Registry) Convert(value any, toType reflect.Type, params map[string]any) (any, error) {
 	if value == nil {
 		return nil, errors.New("cannot convert nil value")
 	}
@@ -109,7 +108,7 @@ func (r *registry) Convert(value any, toType reflect.Type, params map[string]any
 }
 
 // findChain finds the shortes path of converters (BFS).
-func (r *registry) findChain(start, target reflect.Type) (chainPath, error) {
+func (r *Registry) findChain(start, target reflect.Type) (chainPath, error) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -151,7 +150,7 @@ func (r *registry) findChain(start, target reflect.Type) (chainPath, error) {
 }
 
 // executeChain executes the chain of converters.
-func (r *registry) executeChain(value any, path chainPath, params map[string]any) (any, error) {
+func (r *Registry) executeChain(value any, path chainPath, params map[string]any) (any, error) {
 	current := value
 	for _, step := range path.steps {
 		convValue := reflect.ValueOf(step.conv)

@@ -1,16 +1,15 @@
 package processor
 
 import (
-	"github.com/paveldanilin/go-camel/internal/expression"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 )
 
 type SetVariable struct {
 	propertyName    string
-	valueExpression expression.Expression
+	valueExpression Expression
 }
 
-func NewSetVariable(name string, value expression.Expression) *SetVariable {
+func NewSetVariable(name string, value Expression) *SetVariable {
 	return &SetVariable{
 		propertyName:    name,
 		valueExpression: value,

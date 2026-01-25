@@ -1,6 +1,7 @@
 package converter
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -9,19 +10,8 @@ func TestStringToDateTime(t *testing.T) {
 
 	time, err := c.Convert("2010-05-05 05:05:05", nil)
 
-	if err != nil {
-		t.Fatalf("TestStringToDateTime() = %s", err)
-	}
-
-	if time.Year() != 2010 {
-		t.Fatalf("TestStringToDateTime() = %d; want = %d", time.Year(), 2010)
-	}
-
-	if time.Month() != 5 {
-		t.Fatalf("TestStringToDateTime() = %d; want = %d", time.Month(), 5)
-	}
-
-	if time.Day() != 5 {
-		t.Fatalf("TestStringToDateTime() = %d; want = %d", time.Day(), 5)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, 2010, time.Year())
+	assert.Equal(t, 5, int(time.Month()))
+	assert.Equal(t, 5, time.Day())
 }

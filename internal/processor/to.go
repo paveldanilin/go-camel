@@ -1,15 +1,14 @@
 package processor
 
 import (
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 )
 
 type To struct {
-	producer api.Producer
+	producer Processor
 }
 
-func NewTo(producer api.Producer) *To {
+func NewTo(producer Processor) *To {
 	return &To{
 		producer: producer,
 	}

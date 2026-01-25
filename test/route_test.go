@@ -11,6 +11,7 @@ import (
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 	"github.com/paveldanilin/go-camel/pkg/camel/route"
 	"github.com/paveldanilin/go-camel/pkg/camel/route/expr"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -304,38 +305,27 @@ func TestRoute_While(t *testing.T) {
 	// Build camel step definition
 	route, err := camel.NewRoute("reverseNumber", "direct:reverseNumber").
 		SetBody(expr.Constant(0)).
-		While(expr.Simple("header.N != 0")).
+		WhileExpr("header.N != 0").
 		LoopBody(func(b *route.Builder) {
 			b.SetHeader("reminder", expr.Simple("toInt(header.N) % 10"))
 			b.SetBody(expr.Simple("body*10 + header.reminder"))
 			b.SetHeader("N", expr.Simple("toInt(toInt(header.N) / 10)"))
 		}).
 		Build()
-	if err != nil {
-		t.Fatalf("TestRoute_While(): failed to build 'reverseNumber' step: %s", err)
-	}
+	assert.NoError(t, err)
 
 	// Register step in camel runtime
 	err = testCamelRuntime.RegisterRoute(route)
-	if err != nil {
-		t.Fatalf("TestRoute_While(): failed to register 'reverseNumber' route in runtime: %s", err)
-	}
+	assert.NoError(t, err)
 
 	// Start camel runtime
 	err = testCamelRuntime.Start()
-	if err != nil {
-		t.Fatalf("TestRoute_While(): failed to start camel runtime: %s", err)
-	}
+	assert.NoError(t, err)
 
 	result, err := testCamelRuntime.SendHeaders(context.TODO(), "direct:reverseNumber", map[string]any{
 		"N": 123456789,
 	})
-	if err != nil {
-		t.Fatalf("TestRoute_While(): failed to call route: %s", err)
-	}
+	assert.NoError(t, err)
 
-	wantResult := 987654321
-	if result.Message().Body() != wantResult {
-		t.Fatalf("TestRoute_While(): expected result %v, but got %v", wantResult, result.Message().Body())
-	}
+	assert.Equal(t, 987654321, result.MessageBody())
 }

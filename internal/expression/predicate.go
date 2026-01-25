@@ -12,18 +12,18 @@ type Predicate interface {
 
 type PredicateFunc func(e *exchange.Exchange) (bool, error)
 
-func (prd PredicateFunc) Test(e *exchange.Exchange) (bool, error) {
-	return prd(e)
+func (f PredicateFunc) Test(e *exchange.Exchange) (bool, error) {
+	return f(e)
 }
 
-func NewPredicateFromExpression(expr Expression) PredicateFunc {
-	return func(e *exchange.Exchange) (bool, error) {
+func NewPredicateFromExpression(expr Expression) Predicate {
+	return PredicateFunc(func(e *exchange.Exchange) (bool, error) {
 		v, err := expr.Eval(e)
 		if err != nil {
 			return false, err
 		}
 		return toBool(v)
-	}
+	})
 }
 
 func toBool(v any) (bool, error) {
@@ -66,7 +66,7 @@ func toBool(v any) (bool, error) {
 		if x == "0" {
 			return false, nil
 		}
-		return false, fmt.Errorf("cannot convert string %q to bool", x)
+		return false, fmt.Errorf("cannot convert string '%q' to bool", x)
 	default:
 		return false, fmt.Errorf("unsupported type %T", v)
 	}

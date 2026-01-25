@@ -1,12 +1,12 @@
 package direct
 
 import (
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
+	"github.com/paveldanilin/go-camel/pkg/camel"
 )
 
 type Consumer struct {
 	endpoint  *Endpoint
-	producers []api.Producer
+	producers []camel.Producer
 }
 
 func (c *Consumer) Start() error {

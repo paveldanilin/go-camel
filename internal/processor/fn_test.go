@@ -1,7 +1,9 @@
 package processor
 
 import (
+	"context"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -10,11 +12,8 @@ func TestFnProcessor(t *testing.T) {
 		e.Message().SetBody("Hello, World!")
 	})
 
-	e := exchange.NewExchange(nil)
+	e := exchange.NewExchange(context.TODO())
 	p.Process(e)
 
-	expectedValue := "Hello, World!"
-	if e.Message().Body() != expectedValue {
-		t.Fatalf("TestFnProcessor() = %v, want = %s", e.Message().Body(), expectedValue)
-	}
+	assert.Equal(t, "Hello, World!", e.MessageBody())
 }

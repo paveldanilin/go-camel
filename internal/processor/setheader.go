@@ -1,16 +1,15 @@
 package processor
 
 import (
-	"github.com/paveldanilin/go-camel/internal/expression"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 )
 
 type SetHeader struct {
 	headerName      string
-	valueExpression expression.Expression
+	valueExpression Expression
 }
 
-func NewSetHeader(name string, value expression.Expression) *SetHeader {
+func NewSetHeader(name string, value Expression) *SetHeader {
 	return &SetHeader{
 		headerName:      name,
 		valueExpression: value,

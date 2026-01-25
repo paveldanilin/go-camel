@@ -1,8 +1,10 @@
 package processor
 
 import (
+	"context"
 	"errors"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
+	"github.com/stretchr/testify/assert"
 	"reflect"
 	"strconv"
 	"testing"
@@ -20,13 +22,10 @@ func (c *string2int) Convert(v any, _ reflect.Type, _ map[string]any) (any, erro
 
 func TestConvertBodyProcessor(t *testing.T) {
 	p := NewConvertBody(reflect.TypeOf(0), nil, &string2int{})
-	e := exchange.NewExchange(nil)
+	e := exchange.NewExchange(context.TODO())
 	e.Message().SetBody("333")
 
 	p.Process(e)
 
-	expectedValue := 333
-	if e.Message().Body() != expectedValue {
-		t.Fatalf("TestConvertBodyProcessor() = %v; want %d", e.Message().Body(), expectedValue)
-	}
+	assert.Equal(t, 333, e.MessageBody())
 }

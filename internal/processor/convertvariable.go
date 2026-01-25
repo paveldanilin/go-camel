@@ -5,18 +5,14 @@ import (
 	"reflect"
 )
 
-type variableConverter interface {
-	Convert(any, reflect.Type, map[string]any) (any, error)
-}
-
 type ConvertVariable struct {
 	variableName string
 	targetType   reflect.Type
 	params       map[string]any
-	conv         variableConverter
+	conv         Converter
 }
 
-func NewConvertVariable(name string, targetType reflect.Type, params map[string]any, conv variableConverter) *ConvertVariable {
+func NewConvertVariable(name string, targetType reflect.Type, params map[string]any, conv Converter) *ConvertVariable {
 	return &ConvertVariable{
 		variableName: name,
 		targetType:   targetType,

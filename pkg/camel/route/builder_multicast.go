@@ -1,7 +1,6 @@
 package route
 
 import (
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
 	"github.com/paveldanilin/go-camel/pkg/camel/route/step"
 )
 
@@ -30,17 +29,17 @@ func (mb *MulticastBuilder) WithStopOnError(stopOnError bool) *MulticastBuilder 
 	return mb
 }
 
-func (mb *MulticastBuilder) WithAggregator(aggregator api.ExchangeAggregator) *MulticastBuilder {
+func (mb *MulticastBuilder) WithAggregator(aggregator step.ExchangeAggregator) *MulticastBuilder {
 	mb.multicastStep.Aggregator = aggregator
 	return mb
 }
 
-func (mb *MulticastBuilder) Process(block func(b *Builder)) *MulticastBuilder {
+func (mb *MulticastBuilder) Process(block StepBuilder) *MulticastBuilder {
 	if mb.builder.err != nil {
 		return mb
 	}
 
-	outputProcess := step.OutputProcess{Steps: []api.RouteStep{}}
+	outputProcess := step.OutputProcess{Steps: []step.RouteStep{}}
 
 	mb.builder.pushStack(&outputProcess.Steps)
 	block(mb.builder)

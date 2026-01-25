@@ -2,34 +2,34 @@ package processor
 
 import (
 	"fmt"
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 )
 
 type CatchClause struct {
 	errorMatcher ErrorMatcher
-	handler      api.Processor
+	handler      Processor
 }
 
 type Try struct {
-	processors        []api.Processor
+	processors        []Processor
 	catchClauses      []CatchClause
-	finallyProcessors []api.Processor
+	finallyProcessors []Processor
 }
 
 func NewTry() *Try {
 	return &Try{
-		processors:   []api.Processor{},
+		processors:   []Processor{},
 		catchClauses: []CatchClause{},
 	}
 }
 
-func (p *Try) AddProcessor(processor api.Processor) *Try {
+// AddProcessor adds processor to the try body
+func (p *Try) AddProcessor(processor Processor) *Try {
 	p.processors = append(p.processors, processor)
 	return p
 }
 
-func (p *Try) AddCatch(errorMatcher ErrorMatcher, handler api.Processor) *Try {
+func (p *Try) AddCatch(errorMatcher ErrorMatcher, handler Processor) *Try {
 	p.catchClauses = append(p.catchClauses, CatchClause{
 		errorMatcher: errorMatcher,
 		handler:      handler,
@@ -37,7 +37,7 @@ func (p *Try) AddCatch(errorMatcher ErrorMatcher, handler api.Processor) *Try {
 	return p
 }
 
-func (p *Try) AddFinally(finally ...api.Processor) *Try {
+func (p *Try) AddFinally(finally ...Processor) *Try {
 	p.finallyProcessors = append(p.finallyProcessors, finally...)
 	return p
 }

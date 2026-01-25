@@ -2,14 +2,13 @@ package step
 
 import (
 	"fmt"
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
 	"github.com/paveldanilin/go-camel/pkg/camel/route/expr"
 	"strings"
 )
 
 type ChoiceWhen struct {
 	Predicate expr.Definition
-	Steps     []api.RouteStep
+	Steps     []RouteStep
 }
 
 func (s *ChoiceWhen) StepName() string {
@@ -19,7 +18,7 @@ func (s *ChoiceWhen) StepName() string {
 type Choice struct {
 	Name      string
 	WhenCases []ChoiceWhen
-	Otherwise []api.RouteStep
+	Otherwise []RouteStep
 }
 
 func (s *Choice) setStepName(stepName string) {

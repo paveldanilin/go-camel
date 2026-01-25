@@ -2,21 +2,20 @@ package step
 
 import (
 	"fmt"
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
 	"github.com/paveldanilin/go-camel/pkg/camel/route/errmatcher"
 	"strings"
 )
 
 type CatchWhen struct {
 	ErrorMatcher errmatcher.Definition
-	Steps        []api.RouteStep
+	Steps        []RouteStep
 }
 
 type Try struct {
 	Name         string
-	Steps        []api.RouteStep
+	Steps        []RouteStep
 	WhenCatches  []CatchWhen
-	FinallySteps []api.RouteStep
+	FinallySteps []RouteStep
 }
 
 func (s *Try) setStepName(stepName string) {

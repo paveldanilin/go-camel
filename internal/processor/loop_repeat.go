@@ -1,25 +1,25 @@
 package processor
 
 import (
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 )
 
 type RepeatLoop struct {
 	count      int
 	copy       bool // TRUE - make shallow copy for each iteration
-	processors []api.Processor
+	processors []Processor
 }
 
 func NewRepeatLoop(count int) *RepeatLoop {
 	return &RepeatLoop{
 		count:      count,
 		copy:       true,
-		processors: []api.Processor{},
+		processors: []Processor{},
 	}
 }
 
-func (p *RepeatLoop) AddProcessor(processor api.Processor) *RepeatLoop {
+// AddProcessor adds processor to the loop body
+func (p *RepeatLoop) AddProcessor(processor Processor) *RepeatLoop {
 	p.processors = append(p.processors, processor)
 	return p
 }

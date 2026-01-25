@@ -1,7 +1,7 @@
 package timer
 
 import (
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
+	"github.com/paveldanilin/go-camel/pkg/camel"
 	"sync"
 	"time"
 )
@@ -17,14 +17,14 @@ type Consumer struct {
 	done       chan struct{}
 	running    bool
 	endpoint   *Endpoint
-	processors []api.Processor
+	processors []camel.Processor
 	ticker     *time.Ticker
 }
 
 func NewConsumer(endpoint *Endpoint) (*Consumer, error) {
 	return &Consumer{
 		endpoint:   endpoint,
-		processors: []api.Processor{},
+		processors: []camel.Processor{},
 	}, nil
 }
 

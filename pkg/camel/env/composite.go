@@ -1,12 +1,10 @@
 package env
 
-import "github.com/paveldanilin/go-camel/pkg/camel/api"
-
 type Composite struct {
-	envs []api.Env
+	envs []Env
 }
 
-func NewComposite(envs ...api.Env) *Composite {
+func NewComposite(envs ...Env) *Composite {
 	return &Composite{envs: envs}
 }
 

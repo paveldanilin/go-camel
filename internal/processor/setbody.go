@@ -1,17 +1,16 @@
 package processor
 
 import (
-	"github.com/paveldanilin/go-camel/internal/expression"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 )
 
 type SetBody struct {
-	valueExpression expression.Expression
+	valueExpression Expression
 }
 
-func NewSetBody(valueExpression expression.Expression) *SetBody {
+func NewSetBody(value Expression) *SetBody {
 	return &SetBody{
-		valueExpression: valueExpression,
+		valueExpression: value,
 	}
 }
 
@@ -22,5 +21,5 @@ func (p *SetBody) Process(e *exchange.Exchange) {
 		return
 	}
 
-	e.Message().SetBody(value)
+	e.SetMessageBody(value)
 }

@@ -107,8 +107,9 @@ func (e *Exchange) PropertyOrDefault(name string, def any) any {
 	return v
 }
 
-func (e *Exchange) SetProperty(name string, value any) {
+func (e *Exchange) SetProperty(name string, value any) *Exchange {
 	e.properties.Set(name, value)
+	return e
 }
 
 func (e *Exchange) HasProperty(name string) bool {
@@ -147,8 +148,9 @@ func (e *Exchange) Variable(name string) (any, bool) {
 	return e.variables.Get(name)
 }
 
-func (e *Exchange) SetVariable(name string, value any) {
+func (e *Exchange) SetVariable(name string, value any) *Exchange {
 	e.variables.Set(name, value)
+	return e
 }
 
 func (e *Exchange) HasVariable(name string) bool {
@@ -235,4 +237,27 @@ func (e *Exchange) AsMap() map[string]any {
 		"body":       e.Message().Body(),
 		"header":     messageHeaders,
 	}
+}
+
+func (e *Exchange) MessageBody() any {
+	return e.message.body
+}
+
+func (e *Exchange) SetMessageBody(value any) *Exchange {
+	e.message.body = value
+	return e
+}
+
+func (e *Exchange) SetMessageHeader(name string, value any) *Exchange {
+	e.message.SetHeader(name, value)
+	return e
+}
+
+func (e *Exchange) SetMessageHeaders(headers map[string]any) *Exchange {
+	e.message.headers.SetAll(headers)
+	return e
+}
+
+func (e *Exchange) MessageHeader(name string) (any, bool) {
+	return e.message.Header(name)
 }

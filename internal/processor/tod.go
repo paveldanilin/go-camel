@@ -2,25 +2,28 @@ package processor
 
 import (
 	"fmt"
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 	"github.com/paveldanilin/go-camel/pkg/camel/template"
 	"strings"
 )
 
-type endpointRegistry interface {
-	Endpoint(uri string) api.Endpoint
+type Env interface {
+	LookupVar(name string) (string, bool)
+}
+
+type EndpointProducerFactory interface {
+	CreateEndpointProducer(uri string) (Processor, error)
 }
 
 type ToD struct {
-	env              api.Env
-	uriVars          []string
-	uriEnvVars       []string
-	uriTpl           *template.Template
-	endpointRegistry endpointRegistry
+	env                     Env
+	uriVars                 []string
+	uriEnvVars              []string
+	uriTpl                  *template.Template
+	endpointProducerFactory EndpointProducerFactory
 }
 
-func NewToD(uriTpl *template.Template, uriVars []string, endpointRegistry endpointRegistry, env api.Env) *ToD {
+func NewToD(uriTpl *template.Template, uriVars []string, endpointProducerFactory EndpointProducerFactory, env Env) *ToD {
 	// Build list of env vars (prefix 'env.')
 	var uriEnvVars []string
 	for _, varName := range uriVars {
@@ -30,11 +33,11 @@ func NewToD(uriTpl *template.Template, uriVars []string, endpointRegistry endpoi
 	}
 
 	return &ToD{
-		env:              env,
-		uriVars:          uriVars,
-		uriEnvVars:       uriEnvVars,
-		uriTpl:           uriTpl,
-		endpointRegistry: endpointRegistry,
+		env:                     env,
+		uriVars:                 uriVars,
+		uriEnvVars:              uriEnvVars,
+		uriTpl:                  uriTpl,
+		endpointProducerFactory: endpointProducerFactory,
 	}
 }
 
@@ -47,6 +50,7 @@ func (p *ToD) Process(e *exchange.Exchange) {
 	//	'header':		exchange.Message's headers
 	//	'error':		exchange.Exchange's error
 	//	'property':		exchange.Exchange's properties
+	//	'variable':		exchange.Exchange's variables
 	//	'env:			map[string]string{}
 	//}
 	data := e.AsMap()
@@ -55,8 +59,9 @@ func (p *ToD) Process(e *exchange.Exchange) {
 		env := make(map[string]string, len(p.uriEnvVars))
 		for _, varName := range p.uriEnvVars {
 			// Resolve without prefix 'env.'
-			if varValue, varExists := p.env.LookupVar(strings.TrimLeft(varName, "env.")); varExists {
-				env[varName] = varValue
+			normalizedEnvName := strings.TrimLeft(varName, "env.")
+			if varValue, varExists := p.env.LookupVar(normalizedEnvName); varExists {
+				env[normalizedEnvName] = varValue
 			}
 
 		}
@@ -70,16 +75,7 @@ func (p *ToD) Process(e *exchange.Exchange) {
 		return
 	}
 
-	// TODO: cache [URI]=Producer?
-	// Resolve endpoint
-	endpoint := p.endpointRegistry.Endpoint(uri)
-	if endpoint == nil {
-		e.SetError(fmt.Errorf("endpoint not found for uri '%s'", uri))
-		return
-	}
-
-	// Create producer
-	producer, err := endpoint.CreateProducer()
+	producer, err := p.endpointProducerFactory.CreateEndpointProducer(uri)
 	if err != nil {
 		e.SetError(err)
 		return

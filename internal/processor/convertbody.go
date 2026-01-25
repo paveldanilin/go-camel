@@ -5,17 +5,13 @@ import (
 	"reflect"
 )
 
-type bodyConverter interface {
-	Convert(any, reflect.Type, map[string]any) (any, error)
-}
-
 type ConvertBody struct {
 	targetType reflect.Type
 	params     map[string]any
-	conv       bodyConverter
+	conv       Converter
 }
 
-func NewConvertBody(targetType reflect.Type, params map[string]any, conv bodyConverter) *ConvertBody {
+func NewConvertBody(targetType reflect.Type, params map[string]any, conv Converter) *ConvertBody {
 	return &ConvertBody{
 		targetType: targetType,
 		params:     params,
@@ -30,5 +26,5 @@ func (p *ConvertBody) Process(e *exchange.Exchange) {
 		return
 	}
 
-	e.Message().SetBody(convertedValue)
+	e.SetMessageBody(convertedValue)
 }

@@ -9,9 +9,3 @@ import (
 type Expression interface {
 	Eval(e *exchange.Exchange) (any, error)
 }
-
-type Func func(e *exchange.Exchange) (any, error)
-
-func (fn Func) Eval(e *exchange.Exchange) (any, error) {
-	return fn(e)
-}
