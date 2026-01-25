@@ -3,7 +3,7 @@ package timer
 import (
 	"errors"
 	"fmt"
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
+	"github.com/paveldanilin/go-camel/pkg/camel"
 	"github.com/paveldanilin/go-camel/pkg/camel/uri"
 	"sync"
 	"time"
@@ -49,7 +49,7 @@ func (e *Endpoint) Uri() *uri.URI {
 	return e.uri
 }
 
-func (e *Endpoint) CreateConsumer(processor api.Processor) (api.Consumer, error) {
+func (e *Endpoint) CreateConsumer(processor camel.Processor) (camel.Consumer, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
@@ -68,6 +68,6 @@ func (e *Endpoint) CreateConsumer(processor api.Processor) (api.Consumer, error)
 	return e.consumer, nil
 }
 
-func (e *Endpoint) CreateProducer() (api.Producer, error) {
+func (e *Endpoint) CreateProducer() (camel.Producer, error) {
 	return nil, errors.New("timer: producer not supported")
 }

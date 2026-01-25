@@ -2,29 +2,28 @@ package processor
 
 import (
 	"errors"
-	"github.com/paveldanilin/go-camel/internal/expression"
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 )
 
 type WhileLoop struct {
-	predicate  expression.Predicate
+	predicate  Predicate
 	copy       bool // TRUE - make shallow copy of Exchange for each iteration
-	processors []api.Processor
+	processors []Processor
 }
 
-func NewWhileLoop(predicate expression.Expression, copy bool) (*WhileLoop, error) {
+func NewWhileLoop(predicate Predicate, copy bool) (*WhileLoop, error) {
 	if predicate == nil {
 		return nil, errors.New("predicate is nil")
 	}
 	return &WhileLoop{
-		predicate:  expression.NewPredicateFromExpression(predicate),
-		processors: []api.Processor{},
+		predicate:  predicate,
+		processors: []Processor{},
 		copy:       copy,
 	}, nil
 }
 
-func (p *WhileLoop) AddProcessor(processor api.Processor) *WhileLoop {
+// AddProcessor adds processor to the loop body
+func (p *WhileLoop) AddProcessor(processor Processor) *WhileLoop {
 	p.processors = append(p.processors, processor)
 	return p
 }

@@ -1,15 +1,14 @@
 package processor
 
 import (
-	"github.com/paveldanilin/go-camel/internal/expression"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 	"testing"
 )
 
 func TestPipelineProcessor(t *testing.T) {
 	sum := NewPipeline(false).
-		AddProcessor(NewSetHeader("a", expression.NewConstant(1))).
-		AddProcessor(NewSetHeader("b", expression.NewConstant(1))).
+		AddProcessor(NewSetHeader("a", constant(1))).
+		AddProcessor(NewSetHeader("b", constant(1))).
 		AddProcessor(NewFn(func(e *exchange.Exchange) {
 
 			a, _ := e.Message().Header("a")

@@ -2,12 +2,11 @@ package step
 
 import (
 	"fmt"
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
 	"strings"
 )
 
 type OutputProcess struct {
-	Steps []api.RouteStep
+	Steps []RouteStep
 }
 
 func (out OutputProcess) StepName() string {
@@ -18,7 +17,7 @@ type Multicast struct {
 	Name        string
 	Parallel    bool
 	StopOnError bool
-	Aggregator  api.ExchangeAggregator
+	Aggregator  ExchangeAggregator
 	Outputs     []OutputProcess
 }
 

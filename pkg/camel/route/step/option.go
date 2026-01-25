@@ -1,7 +1,5 @@
 package step
 
-import "github.com/paveldanilin/go-camel/pkg/camel/api"
-
 type step interface {
 	setStepName(name string)
 }
@@ -14,7 +12,7 @@ func WithName(name string) Option {
 	}
 }
 
-func ApplyOptions(routeStep api.RouteStep, options ...Option) {
+func ApplyOptions(routeStep RouteStep, options ...Option) {
 	if s, isStep := routeStep.(step); isStep {
 		for _, opt := range options {
 			opt(s)

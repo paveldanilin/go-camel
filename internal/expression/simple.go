@@ -53,7 +53,7 @@ func init() {
 	}
 }
 
-// simple is a wrapper for https://expr-lang.org/docs/getting-started
+// Simple is a wrapper for https://expr-lang.org/docs/getting-started
 // Variables (see Exchange.asMap):
 //
 //	 body:			the Message body
@@ -62,12 +62,12 @@ func init() {
 //	 property:		the Exchange properties (property.foo refers to the Exchange property 'foo')
 //	 id:				the Message id
 //		exchangeId:		the Exchange id
-type simple struct {
+type Simple struct {
 	raw     string
 	program *vm.Program
 }
 
-func NewSimple(e string) (*simple, error) {
+func NewSimple(e string) (*Simple, error) {
 	program, err := expr.Compile(e,
 		expr.AllowUndefinedVariables(),
 		expr.Optimize(true),
@@ -76,13 +76,13 @@ func NewSimple(e string) (*simple, error) {
 		return nil, err
 	}
 
-	return &simple{
+	return &Simple{
 		raw:     e,
 		program: program,
 	}, nil
 }
 
-func MustSimple(e string) *simple {
+func MustSimple(e string) *Simple {
 	expr_, err := NewSimple(e)
 	if err != nil {
 		panic(fmt.Errorf("camel: expression: simple: %w", err))
@@ -91,7 +91,7 @@ func MustSimple(e string) *simple {
 	return expr_
 }
 
-func (e *simple) Eval(ex *exchange.Exchange) (any, error) {
+func (e *Simple) Eval(ex *exchange.Exchange) (any, error) {
 	env := ex.AsMap()
 	for k, v := range simpleExpressionEnv {
 		env[k] = v
@@ -99,6 +99,6 @@ func (e *simple) Eval(ex *exchange.Exchange) (any, error) {
 	return expr.Run(e.program, env)
 }
 
-func (e *simple) String() string {
+func (e *Simple) String() string {
 	return e.raw
 }

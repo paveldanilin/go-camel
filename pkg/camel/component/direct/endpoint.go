@@ -1,7 +1,7 @@
 package direct
 
 import (
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
+	"github.com/paveldanilin/go-camel/pkg/camel"
 	"github.com/paveldanilin/go-camel/pkg/camel/uri"
 	"sync"
 )
@@ -19,14 +19,14 @@ func (e *Endpoint) Uri() *uri.URI {
 	return e.uri
 }
 
-func (e *Endpoint) CreateConsumer(processor api.Processor) (api.Consumer, error) {
+func (e *Endpoint) CreateConsumer(processor camel.Processor) (camel.Consumer, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	if e.consumer == nil {
 		e.consumer = &Consumer{
 			endpoint:  e,
-			producers: []api.Producer{processor},
+			producers: []camel.Producer{processor},
 		}
 	} else {
 		e.consumer.producers = append(e.consumer.producers, processor)
@@ -35,7 +35,7 @@ func (e *Endpoint) CreateConsumer(processor api.Processor) (api.Consumer, error)
 	return e.consumer, nil
 }
 
-func (e *Endpoint) CreateProducer() (api.Producer, error) {
+func (e *Endpoint) CreateProducer() (camel.Producer, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 

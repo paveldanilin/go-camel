@@ -1,19 +1,19 @@
 package processor
 
 import (
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 	"github.com/paveldanilin/go-camel/pkg/camel/template"
+	"log/slog"
 )
 
 type Log struct {
-	level       api.LogLevel
-	logger      api.Logger
+	level       slog.Level
+	logger      *slog.Logger
 	msg         string             // msg represents a templated message
 	msgTemplate *template.Template // will be used if msg contains variables like: ${var_name} or ${person.headerName} or ${person.products[0].headerName}.
 }
 
-func NewLog(msg string, level api.LogLevel, logger api.Logger) (*Log, error) {
+func NewLog(msg string, level slog.Level, logger *slog.Logger) (*Log, error) {
 	p := &Log{
 		msg:    msg,
 		level:  level,
@@ -32,12 +32,13 @@ func NewLog(msg string, level api.LogLevel, logger api.Logger) (*Log, error) {
 }
 
 func (p *Log) Process(e *exchange.Exchange) {
-	// Not templated message
+	// Message does not have variables, nothing to interpolate
 	if p.msgTemplate == nil {
 		p.logger.Log(e.Context(), p.level, p.msg)
 		return
 	}
 
+	// Message has variables
 	// resolve variables, render and send to the logger
 	msg, err := p.msgTemplate.Render(e.AsMap())
 	if err != nil {

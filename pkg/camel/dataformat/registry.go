@@ -2,22 +2,21 @@ package dataformat
 
 import (
 	"errors"
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
 	"sync"
 )
 
-type registry struct {
+type Registry struct {
 	mu            sync.Mutex
-	dataFormatMap map[string]api.DataFormat
+	dataFormatMap map[string]DataFormat
 }
 
-func NewRegistry() *registry {
-	return &registry{
-		dataFormatMap: map[string]api.DataFormat{},
+func NewRegistry() *Registry {
+	return &Registry{
+		dataFormatMap: map[string]DataFormat{},
 	}
 }
 
-func (r *registry) RegisterDataFormat(name string, dataFormat api.DataFormat) error {
+func (r *Registry) RegisterDataFormat(name string, dataFormat DataFormat) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -29,7 +28,7 @@ func (r *registry) RegisterDataFormat(name string, dataFormat api.DataFormat) er
 	return nil
 }
 
-func (r *registry) DataFormat(name string) api.DataFormat {
+func (r *Registry) DataFormat(name string) DataFormat {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 

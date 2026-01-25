@@ -1,13 +1,12 @@
 package processor
 
 import (
-	"github.com/paveldanilin/go-camel/internal/expression"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 	"testing"
 )
 
 func TestSetPropertyProcessor(t *testing.T) {
-	p := NewSetProperty("MY_PROPERTY", expression.NewConstant("MY_PROPERTY_VALUE"))
+	p := NewSetProperty("MY_PROPERTY", constant("MY_PROPERTY_VALUE"))
 
 	e := exchange.NewExchange(nil)
 

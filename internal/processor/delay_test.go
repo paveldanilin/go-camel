@@ -1,22 +1,21 @@
 package processor
 
 import (
+	"context"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 )
 
 func TestDelayProcessor(t *testing.T) {
 	p := NewDelay(500)
-	e := exchange.NewExchange(nil)
+	e := exchange.NewExchange(context.TODO())
 	start := time.Now()
 
 	p.Process(e)
 
 	elapsedMs := time.Since(start).Milliseconds()
 
-	expectedValue := int64(500)
-	if elapsedMs < expectedValue {
-		t.Fatalf("TestDelayProcessor() = %d elapsed ms; want >= %d", elapsedMs, expectedValue)
-	}
+	assert.LessOrEqual(t, int64(500), elapsedMs)
 }

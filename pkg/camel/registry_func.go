@@ -6,18 +6,20 @@ import (
 	"sync"
 )
 
+type Func func(*exchange.Exchange)
+
 type funcRegistry struct {
 	mu      sync.Mutex
-	funcMap map[string]func(*exchange.Exchange)
+	funcMap map[string]Func
 }
 
 func newFuncRegistry() *funcRegistry {
 	return &funcRegistry{
-		funcMap: map[string]func(*exchange.Exchange){},
+		funcMap: map[string]Func{},
 	}
 }
 
-func (fr *funcRegistry) RegisterFunc(name string, fn func(*exchange.Exchange)) error {
+func (fr *funcRegistry) RegisterFunc(name string, fn Func) error {
 	fr.mu.Lock()
 	defer fr.mu.Unlock()
 
@@ -29,7 +31,7 @@ func (fr *funcRegistry) RegisterFunc(name string, fn func(*exchange.Exchange)) e
 	return nil
 }
 
-func (fr *funcRegistry) Func(name string) func(*exchange.Exchange) {
+func (fr *funcRegistry) Func(name string) Func {
 	fr.mu.Lock()
 	defer fr.mu.Unlock()
 

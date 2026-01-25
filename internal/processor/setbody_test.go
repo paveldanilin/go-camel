@@ -1,13 +1,12 @@
 package processor
 
 import (
-	"github.com/paveldanilin/go-camel/internal/expression"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 	"testing"
 )
 
 func TestSetBodyProcessor(t *testing.T) {
-	mul := NewSetBody(expression.Func(func(e *exchange.Exchange) (any, error) {
+	mul := NewSetBody(ExpressionFunc(func(e *exchange.Exchange) (any, error) {
 
 		a := e.Message().MustHeader("a")
 		b := e.Message().MustHeader("b")

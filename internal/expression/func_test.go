@@ -2,6 +2,7 @@ package expression
 
 import (
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -15,12 +16,7 @@ func TestFunc_Eval(t *testing.T) {
 	m.Message().SetHeader("b", 9)
 
 	result, err := fnExpr.Eval(m)
-	if err != nil {
-		t.Fatalf("TestFunc_Eval(): %s", err)
-	}
 
-	wantResult := 10
-	if result != wantResult {
-		t.Fatalf("TestFunc_Eval(): expected result %v, but got %v", wantResult, result)
-	}
+	assert.NoError(t, err)
+	assert.Equal(t, 10, result)
 }

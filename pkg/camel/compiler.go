@@ -5,26 +5,26 @@ import (
 	"fmt"
 	"github.com/paveldanilin/go-camel/internal/expression"
 	"github.com/paveldanilin/go-camel/internal/processor"
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 	"github.com/paveldanilin/go-camel/pkg/camel/route"
 	"github.com/paveldanilin/go-camel/pkg/camel/route/errmatcher"
 	"github.com/paveldanilin/go-camel/pkg/camel/route/expr"
 	"github.com/paveldanilin/go-camel/pkg/camel/route/step"
 	"github.com/paveldanilin/go-camel/pkg/camel/template"
+	"log/slog"
 	"reflect"
 	"strings"
 )
 
 type compilerConfig struct {
-	logger             api.Logger
-	env                api.Env
+	logger             *slog.Logger
+	env                Env
 	funcRegistry       FuncRegistry
 	dataFormatRegistry DataFormatRegistry
 	converterRegistry  ConverterRegistry
 	endpointRegistry   EndpointRegistry
-	preProcessHook     processor.Hook
-	postProcessHook    processor.Hook
+	preProcessHook     RouteStepHook
+	postProcessHook    RouteStepHook
 }
 
 // compileRoute converts a set of route.Definition to a set of api.Processor.
@@ -41,7 +41,7 @@ func compileRoute(c compilerConfig, routeDefinition *route.Definition) (*rtRoute
 	}, nil
 }
 
-func createProcessor(c compilerConfig, routeName string, steps ...api.RouteStep) (api.Processor, error) {
+func createProcessor(c compilerConfig, routeName string, steps ...step.RouteStep) (Processor, error) {
 	if steps == nil || len(steps) == 0 {
 		return nil, errors.New("empty steps")
 	}
@@ -56,10 +56,10 @@ func createProcessor(c compilerConfig, routeName string, steps ...api.RouteStep)
 			}
 			pipeline.AddProcessor(p)
 		}
-		return processor.NewRouteStep(routeName, "", pipeline, c.preProcessHook, c.postProcessHook), nil
+		return NewRouteStep(routeName, "", pipeline, c.preProcessHook, c.postProcessHook), nil
 	}
 
-	var proc api.Processor
+	var proc Processor
 	var err error
 
 	switch t := steps[0].(type) {
@@ -140,7 +140,7 @@ func createProcessor(c compilerConfig, routeName string, steps ...api.RouteStep)
 		return nil, err
 	}
 
-	return processor.NewRouteStep(routeName, steps[0].StepName(), proc, c.preProcessHook, c.postProcessHook), nil
+	return NewRouteStep(routeName, steps[0].StepName(), proc, c.preProcessHook, c.postProcessHook), nil
 }
 
 func createConvertVariableProcessor(c compilerConfig, convertVariable *step.ConvertVariable) (*processor.ConvertVariable, error) {
@@ -171,7 +171,7 @@ func createMulticastProcessor(c compilerConfig, routeName string, multicast *ste
 		if err != nil {
 			return nil, err
 		}
-		multicastProcessor.AddOutput(outputProcessor)
+		multicastProcessor.AddProcessor(outputProcessor)
 	}
 	return multicastProcessor, nil
 }
@@ -182,7 +182,9 @@ func createWhileLoopProcessor(c compilerConfig, routeName string, whileLoop *ste
 		return nil, err
 	}
 
-	whileLoopProcessor, err := processor.NewWhileLoop(prdExpr, whileLoop.CopyExchange)
+	whilePredicate := expression.NewPredicateFromExpression(prdExpr)
+
+	whileLoopProcessor, err := processor.NewWhileLoop(whilePredicate, whileLoop.CopyExchange)
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +232,7 @@ func createSetVariableProcessor(setVariable *step.SetVariable) (*processor.SetVa
 	return processor.NewSetVariable(setVariable.VariableName, valueExpr), nil
 }
 
-func createToProcessor(c compilerConfig, to *step.To) (api.Processor, error) {
+func createToProcessor(c compilerConfig, to *step.To) (Processor, error) {
 	uriVars, err := template.Vars(to.URI)
 	if err != nil {
 		return nil, err
@@ -238,13 +240,17 @@ func createToProcessor(c compilerConfig, to *step.To) (api.Processor, error) {
 
 	// static to
 	if len(uriVars) == 0 {
-		endpoint := c.endpointRegistry.Endpoint(to.URI)
-		if endpoint == nil {
-			return nil, fmt.Errorf("failed to create 'to' processor: not found endpoint for URI '%s'", to.URI)
-		}
-		producer, producerErr := endpoint.CreateProducer()
-		if producerErr != nil {
-			return nil, fmt.Errorf("failed to create 'to' processor: %w", producerErr)
+		//endpoint := c.endpointRegistry.Endpoint(to.URI)
+		//if endpoint == nil {
+		//	return nil, fmt.Errorf("failed to create 'to' processor: not found endpoint for URI '%s'", to.URI)
+		//}
+		//producer, producerErr := endpoint.CreateProducer()
+		//if producerErr != nil {
+		//	return nil, fmt.Errorf("failed to create 'to' processor: %w", producerErr)
+		//}
+		producer, err := c.endpointRegistry.CreateEndpointProducer(to.URI)
+		if err != nil {
+			return nil, err
 		}
 		return processor.NewTo(producer), nil
 	}
@@ -274,16 +280,22 @@ func createChoiceProcessor(c compilerConfig, routeName string, choice *step.Choi
 	choiceProcessor := processor.NewChoice()
 
 	for _, when := range choice.WhenCases {
-		whenBody, err := createProcessor(c, routeName, when.Steps...)
+		thenProcessor, err := createProcessor(c, routeName, when.Steps...)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create 'then' processor: %w", err)
 		}
 
 		prdExpr, err := createExpression(when.Predicate)
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("failed to create predicate: %w", err)
 		}
-		choiceProcessor.When(prdExpr, whenBody)
+
+		whenPredicate := expression.NewPredicateFromExpression(prdExpr)
+
+		err = choiceProcessor.AddWhen(whenPredicate, thenProcessor)
+		if err != nil {
+			return nil, fmt.Errorf("failed to add 'when' condition: %w", err)
+		}
 	}
 
 	if len(choice.Otherwise) > 0 {

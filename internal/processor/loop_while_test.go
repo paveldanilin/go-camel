@@ -1,50 +1,54 @@
 package processor
 
 import (
-	"github.com/paveldanilin/go-camel/internal/expression"
+	"context"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestWhileLoopProcessor(t *testing.T) {
-	loop, err := NewWhileLoop(expression.MustSimple("property.CAMEL_LOOP_INDEX < 10"), true)
-	if err != nil {
-		t.Fatalf("Failed to create while loop processor: %s", err)
-	}
+	loop, err := NewWhileLoop(PredicateFunc(func(e *exchange.Exchange) (bool, error) {
+		it, _ := e.Property(exchange.PropertyLoopIndex)
+		return it.(int) < 10, nil
+	}), true)
+	assert.NoError(t, err)
 
-	loop.AddProcessor(NewSetBody(expression.MustSimple("property.CAMEL_LOOP_INDEX")))
+	loop.AddProcessor(P(func(e *exchange.Exchange) {
+		e.SetMessageBody(e.PropertyOrDefault(exchange.PropertyLoopIndex, 0))
+	}))
 
-	e := exchange.NewExchange(nil)
+	e := exchange.NewExchange(context.TODO())
 
 	loop.Process(e)
 
-	expectedBody := 9
-	if e.Message().Body() != expectedBody {
-		t.Errorf("TestWhileLoopProcessor() = %v; want body %v", e.Message().Body(), expectedBody)
-	}
+	assert.Equal(t, 9, e.MessageBody())
 }
 
 func TestWhileLoopProcessor_Break(t *testing.T) {
-	loop, err := NewWhileLoop(expression.MustSimple("true"), true)
-	if err != nil {
-		t.Fatalf("Failed to create while loop processor: %s", err)
-	}
+	loop, err := NewWhileLoop(PredicateFunc(func(e *exchange.Exchange) (bool, error) {
+		return true, nil
+	}), true)
+	assert.NoError(t, err)
 
-	loop.AddProcessor(NewSetBody(expression.MustSimple("property.CAMEL_LOOP_INDEX"))).
-		AddProcessor(
-			NewChoice().
-				// break after 5 iterations
-				When(
-					expression.MustSimple("body >= 5"),
-					NewSetProperty(exchange.PropertyLoopBreak, expression.NewConstant(true))),
-		)
+	loop.AddProcessor(P(func(e *exchange.Exchange) {
+		e.SetMessageBody(e.PropertyOrDefault(exchange.PropertyLoopIndex, 0))
+	}))
+
+	breakCond := NewChoice()
+	// break the loop after 5 iterations
+	err = breakCond.AddWhen(
+		PredicateFunc(func(e *exchange.Exchange) (bool, error) {
+			return e.MessageBody().(int) >= 5, nil
+		}),
+		NewSetProperty(exchange.PropertyLoopBreak, constant(true)))
+	assert.NoError(t, err)
+
+	loop.AddProcessor(breakCond)
 
 	e := exchange.NewExchange(nil)
 
 	loop.Process(e)
 
-	expectedBody := 5
-	if e.Message().Body() != expectedBody {
-		t.Errorf("TestWhileLoopProcessor_Break() = %v; want body %v", e.Message().Body(), expectedBody)
-	}
+	assert.Equal(t, 5, e.MessageBody())
 }

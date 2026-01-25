@@ -2,16 +2,15 @@ package processor
 
 import (
 	"fmt"
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
 	"github.com/paveldanilin/go-camel/pkg/camel/exchange"
 )
 
 type Unmarshal struct {
 	model      any
-	dataFormat api.DataFormat
+	dataFormat DataFormat
 }
 
-func NewUnmarshal(model any, dataFormat api.DataFormat) *Unmarshal {
+func NewUnmarshal(model any, dataFormat DataFormat) *Unmarshal {
 	return &Unmarshal{
 		model:      model,
 		dataFormat: dataFormat,

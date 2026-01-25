@@ -8,6 +8,26 @@ const (
 	PropertyLoopBreak   = "CAMEL_LOOP_BREAK"
 )
 
+func EndpointUri(e *Exchange) string {
+	return e.PropertyOrDefault(PropertyEndpointUri, "").(string)
+}
+
+func RouteName(e *Exchange) string {
+	return e.PropertyOrDefault(PropertyRouteName, "").(string)
+}
+
+func StepName(e *Exchange) string {
+	return e.PropertyOrDefault(PropertyStepName, "").(string)
+}
+
+func LoopIndex(e *Exchange) int {
+	return e.PropertyOrDefault(PropertyLoopIndex, 0).(int)
+}
+
+func LoopBreak(e *Exchange) bool {
+	return e.PropertyOrDefault(PropertyLoopBreak, false).(bool)
+}
+
 type Properties map[string]any
 
 func (p Properties) Get(name string) (any, bool) {

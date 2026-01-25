@@ -2,13 +2,12 @@ package step
 
 import (
 	"fmt"
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
 )
 
 type Pipeline struct {
 	Name       string
 	StoOnError bool
-	Steps      []api.RouteStep
+	Steps      []RouteStep
 }
 
 func (s *Pipeline) setStepName(stepName string) {

@@ -17,7 +17,7 @@ func (tb *TryBuilder) WithName(stepName string) *TryBuilder {
 }
 
 // Catch adds 'catch' to the current TryStep.
-func (tb *TryBuilder) Catch(errorMatcher errmatcher.Definition, then func(b *Builder)) *TryBuilder {
+func (tb *TryBuilder) Catch(errorMatcher errmatcher.Definition, then StepBuilder) *TryBuilder {
 	if tb.builder.err != nil {
 		return tb
 	}
@@ -33,8 +33,28 @@ func (tb *TryBuilder) Catch(errorMatcher errmatcher.Definition, then func(b *Bui
 	return tb // Catch chain
 }
 
+func (tb *TryBuilder) CatchAny(then StepBuilder) *TryBuilder {
+	return tb.Catch(errmatcher.Any(), then)
+}
+
+func (tb *TryBuilder) CatchErrorIs(target error, then StepBuilder) *TryBuilder {
+	return tb.Catch(errmatcher.Is(target), then)
+}
+
+func (tb *TryBuilder) CatchErrorEquals(str string, then StepBuilder) *TryBuilder {
+	return tb.Catch(errmatcher.Equals(str), then)
+}
+
+func (tb *TryBuilder) CatchErrorContains(str string, then StepBuilder) *TryBuilder {
+	return tb.Catch(errmatcher.Contains(str), then)
+}
+
+func (tb *TryBuilder) CatchErrorMatches(pattern string, then StepBuilder) *TryBuilder {
+	return tb.Catch(errmatcher.Matches(pattern), then)
+}
+
 // Finally adds 'finally' and returns to the main builder.
-func (tb *TryBuilder) Finally(block func(b *Builder)) *Builder {
+func (tb *TryBuilder) Finally(block StepBuilder) *Builder {
 	if tb.builder.err != nil {
 		return tb.builder
 	}

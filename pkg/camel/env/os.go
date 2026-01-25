@@ -2,13 +2,13 @@ package env
 
 import "os"
 
-type OsEnv struct {
+type Os struct {
 }
 
-func NewOsEnv() *OsEnv {
-	return &OsEnv{}
+func NewOs() *Os {
+	return &Os{}
 }
 
-func (env *OsEnv) LookupVar(name string) (string, bool) {
+func (env *Os) LookupVar(name string) (string, bool) {
 	return os.LookupEnv(name)
 }

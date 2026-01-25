@@ -5,18 +5,14 @@ import (
 	"reflect"
 )
 
-type headerConverter interface {
-	Convert(any, reflect.Type, map[string]any) (any, error)
-}
-
 type ConvertHeader struct {
 	headerName string
 	targetType reflect.Type
 	params     map[string]any
-	conv       headerConverter
+	conv       Converter
 }
 
-func NewConvertHeader(name string, targetType reflect.Type, params map[string]any, conv headerConverter) *ConvertHeader {
+func NewConvertHeader(name string, targetType reflect.Type, params map[string]any, conv Converter) *ConvertHeader {
 	return &ConvertHeader{
 		headerName: name,
 		params:     params,
@@ -33,6 +29,6 @@ func (p *ConvertHeader) Process(e *exchange.Exchange) {
 			return
 		}
 
-		e.Message().SetHeader(p.headerName, convertedValue)
+		e.SetMessageHeader(p.headerName, convertedValue)
 	}
 }

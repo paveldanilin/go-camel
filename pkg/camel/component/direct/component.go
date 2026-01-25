@@ -1,7 +1,7 @@
 package direct
 
 import (
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
+	"github.com/paveldanilin/go-camel/pkg/camel"
 	camelUri "github.com/paveldanilin/go-camel/pkg/camel/uri"
 )
 
@@ -12,11 +12,11 @@ func NewComponent() *Component {
 	return &Component{}
 }
 
-func (c Component) Id() string {
+func (c Component) ComponentId() string {
 	return "direct"
 }
 
-func (c Component) CreateEndpoint(uri string) (api.Endpoint, error) {
+func (c Component) CreateEndpoint(uri string) (camel.Endpoint, error) {
 	parsedUri, err := camelUri.Parse(uri, nil)
 	if err != nil {
 		return nil, err

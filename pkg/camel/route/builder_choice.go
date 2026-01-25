@@ -17,7 +17,7 @@ func (cb *ChoiceBuilder) WithName(stepName string) *ChoiceBuilder {
 }
 
 // When adds step.ChoiceWhen block to the current choice step and returns ChoiceBuilder.
-func (cb *ChoiceBuilder) When(predicate expr.Definition, then func(b *Builder)) *ChoiceBuilder {
+func (cb *ChoiceBuilder) When(predicate expr.Definition, then StepBuilder) *ChoiceBuilder {
 	if cb.builder.err != nil {
 		return cb
 	}
@@ -33,8 +33,12 @@ func (cb *ChoiceBuilder) When(predicate expr.Definition, then func(b *Builder)) 
 	return cb
 }
 
+func (cb *ChoiceBuilder) WhenExpr(simple string, then StepBuilder) *ChoiceBuilder {
+	return cb.When(expr.Simple(simple), then)
+}
+
 // Otherwise adds the otherwise (default) block to the current choice step and returns main *Builder.
-func (cb *ChoiceBuilder) Otherwise(block func(b *Builder)) *Builder {
+func (cb *ChoiceBuilder) Otherwise(block StepBuilder) *Builder {
 	if cb.builder.err != nil {
 		return cb.builder
 	}

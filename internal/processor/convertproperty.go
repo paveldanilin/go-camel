@@ -5,18 +5,14 @@ import (
 	"reflect"
 )
 
-type propertyConverter interface {
-	Convert(any, reflect.Type, map[string]any) (any, error)
-}
-
 type ConvertProperty struct {
 	propertyName string
 	targetType   reflect.Type
 	params       map[string]any
-	conv         propertyConverter
+	conv         Converter
 }
 
-func NewConvertProperty(name string, targetType reflect.Type, params map[string]any, conv propertyConverter) *ConvertProperty {
+func NewConvertProperty(name string, targetType reflect.Type, params map[string]any, conv Converter) *ConvertProperty {
 	return &ConvertProperty{
 		propertyName: name,
 		targetType:   targetType,

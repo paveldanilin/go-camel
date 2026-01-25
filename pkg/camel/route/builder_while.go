@@ -1,7 +1,6 @@
 package route
 
 import (
-	"github.com/paveldanilin/go-camel/pkg/camel/api"
 	"github.com/paveldanilin/go-camel/pkg/camel/route/step"
 )
 
@@ -20,12 +19,12 @@ func (wb *WhileBuilder) WithCopyExchange(copyExchange bool) *WhileBuilder {
 	return wb
 }
 
-func (wb *WhileBuilder) LoopBody(block func(b *Builder)) *Builder {
+func (wb *WhileBuilder) LoopBody(block StepBuilder) *Builder {
 	if wb.builder.err != nil {
 		return wb.builder
 	}
 
-	loopBody := step.Pipeline{Steps: []api.RouteStep{}, StoOnError: true}
+	loopBody := step.Pipeline{Steps: []step.RouteStep{}, StoOnError: true}
 
 	wb.builder.pushStack(&loopBody.Steps)
 	block(wb.builder)

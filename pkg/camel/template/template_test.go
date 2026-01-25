@@ -1,6 +1,7 @@
 package template
 
 import (
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -50,76 +51,48 @@ func TestTemplate_Render(t *testing.T) {
 
 	templateStr := "Hello, ${person.name}! Age: ${person.age}. Friend: ${person.friends[1]}. Nested: ${person.nestedList[1].item}. Special: ${special}. Profile: ${profile.id}; ${profile.services[0].name}; ${profile.products[1].name};"
 	tmpl, err := Parse(templateStr)
-	if err != nil {
-		t.Errorf("Parse error: %s", err)
-	}
+	assert.NoError(t, err)
 
 	result, err := tmpl.Render(data)
-	if err != nil {
-		t.Errorf("Render error: %s", err)
-	}
+	assert.NoError(t, err)
 
 	expectedString := "Hello, Alice! Age: 30. Friend: Charlie. Nested: second. Special: \\${escaped\\}. Profile: XYZ-01; SRV-001; PROD-002;"
-	if expectedString != result {
-		t.Errorf("expected string '%s', but got '%s'", expectedString, result)
-	}
+	assert.Equal(t, expectedString, result)
 }
 
 func TestHasVars_NoVars(t *testing.T) {
 	input := "Just simple string with $ sign {x}"
 
 	result := HasVars(input)
-	expectedValue := false
-
-	if expectedValue != result {
-		t.Errorf("expected bool value %v, but got %v", expectedValue, result)
-	}
+	assert.False(t, result)
 }
 
 func TestHasVars_Escaped(t *testing.T) {
 	input := "This is simple string \\${xxx}"
 
 	result := HasVars(input)
-	expectedValue := false
-
-	if expectedValue != result {
-		t.Errorf("expected bool value %v, but got %v", expectedValue, result)
-	}
+	assert.False(t, result)
 }
 
 func TestHasVars(t *testing.T) {
 	input := "Hello ${user_name}"
 
 	result := HasVars(input)
-	expectedValue := true
-
-	if expectedValue != result {
-		t.Errorf("expected bool value %v, but got %v", expectedValue, result)
-	}
+	assert.True(t, result)
 }
 
 func TestVars_NoVars(t *testing.T) {
 	input := "Hello, user!"
 
 	vars, err := Vars(input)
-	if err != nil {
-		t.Fatalf("TestVars_NoVars(): %s", err)
-	}
-
-	if len(vars) != 0 {
-		t.Fatalf("TestVars_NoVars(): expected 0 variables, but got %d", len(vars))
-	}
+	assert.NoError(t, err)
+	assert.Empty(t, vars)
 }
 
 func TestVars(t *testing.T) {
 	input := "Hello, ${username}! Today is ${day}."
 
 	vars, err := Vars(input)
-	if err != nil {
-		t.Fatalf("TestVars(): %s", err)
-	}
-
-	if len(vars) != 2 {
-		t.Fatalf("TestVars(): expected 2 variables, but got %d", len(vars))
-	}
+	assert.NoError(t, err)
+	assert.Len(t, vars, 2)
 }
