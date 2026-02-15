@@ -282,8 +282,8 @@ func (b *Builder) ConvertVariableToNamed(name, typeName string, params map[strin
 	return b
 }
 
-func (b *Builder) Convert() *ConvertBuilder {
-	return &ConvertBuilder{builder: b}
+func (b *Builder) Convert(opts ...step.Option) *ConvertBuilder {
+	return &ConvertBuilder{builder: b, opts: opts}
 }
 
 // Choice adds choice step to the current step level.

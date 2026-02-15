@@ -5,12 +5,6 @@ import (
 	"time"
 )
 
-type Func[From any, To any] func(from From, params map[string]any) (To, error)
-
-func (f Func[From, To]) Convert(from From, params map[string]any) (To, error) {
-	return f(from, params)
-}
-
 // String -> int, float, bool, bool
 
 func StringToInt() Converter[string, int] {

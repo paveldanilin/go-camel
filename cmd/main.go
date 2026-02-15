@@ -77,7 +77,10 @@ func main() {
 		camelRuntime.MustRegisterRoute(r)
 	*/
 	r, _ = camel.NewRoute("x", "direct:x").
-		Convert().Body().ToType("int").EndConvert().
+		Convert(step.WithName("Convert body to int")).
+		Body().
+		ToType("int").
+		EndConvert().
 		Build()
 	camelRuntime.MustRegisterRoute(r)
 

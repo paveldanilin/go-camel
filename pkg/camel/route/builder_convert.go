@@ -1,16 +1,21 @@
 package route
 
-import "maps"
+import (
+	"github.com/paveldanilin/go-camel/pkg/camel/route/step"
+	"maps"
+)
 
 type ConvertBuilder struct {
 	builder *Builder
+	opts    []step.Option
 }
 
 type BodyConvertBuilder struct {
-	builder    *Builder
-	targetType any
-	typeName   string
-	params     map[string]any
+	routeBuilder   *Builder
+	convertBuilder *ConvertBuilder
+	targetType     any
+	typeName       string
+	params         map[string]any
 }
 
 func (bc *BodyConvertBuilder) To(targetType any) *BodyConvertBuilder {
@@ -29,19 +34,22 @@ func (bc *BodyConvertBuilder) WithParams(params map[string]any) *BodyConvertBuil
 }
 
 func (bc *BodyConvertBuilder) EndConvert() *Builder {
-	if (bc.targetType == nil && len(bc.typeName) == 0) {
+	if bc.targetType == nil && len(bc.typeName) == 0 {
 		// TODO: error
 	}
 
-	if (bc.targetType != nil) {
-		return bc.builder.ConvertBodyTo(bc.targetType, bc.params)
+	if bc.targetType != nil {
+		return bc.routeBuilder.ConvertBodyTo(bc.targetType, bc.params, bc.convertBuilder.opts...)
 	}
 
-	return bc.builder.ConvertBodyToNamed(bc.typeName, bc.params)
+	return bc.routeBuilder.ConvertBodyToNamed(bc.typeName, bc.params, bc.convertBuilder.opts...)
 }
 
 func (cb *ConvertBuilder) Body() *BodyConvertBuilder {
-	return &BodyConvertBuilder{builder: cb.builder}
+	return &BodyConvertBuilder{
+		routeBuilder:   cb.builder,
+		convertBuilder: cb,
+	}
 }
 
 func (cb *ConvertBuilder) Header(name string) {

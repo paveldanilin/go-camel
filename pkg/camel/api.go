@@ -45,6 +45,10 @@ type ExchangeFactoryAware interface {
 	SetExchangeFactory(f ExchangeFactory)
 }
 
+type Converter[From any, To any] interface {
+	Convert(from From, params map[string]any) (To, error)
+}
+
 type ConverterRegistry interface {
 	// Register registers new converter that MUST implement Converter interface.
 	Register(conv any) error
